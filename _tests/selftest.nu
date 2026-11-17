@@ -9,7 +9,7 @@
 #   nu _tests/selftest.nu            # run every case
 #   nu _tests/selftest.nu hooks      # run cases whose name matches a regex
 
-# nu-lint-ignore-file: missing_output_type
+# nu-lint-ignore-file: missing_output_type, block_brace_spacing
 
 # The checkout is the include path for `use style` (a parse-time constant, so it must precede the import).
 const NU_LIB_DIRS: list<path> = [(path self ..)]
@@ -483,7 +483,7 @@ def "test greet" [] { assert equal (greet hello) hi }'
     rm ($dir | path join nutest.nuon)
     assert str contains (runner $dir 'test config' --vars {NU_TEST: '{resolved: true}'}).stderr 'unknown test configuration key(s) in $env.NU_TEST: resolved'
     # A complete resolved record (what a child receives) is still taken as is.
-    assert equal (ok $dir 'let c = test config; with-env {NU_TEST: ($c | to nuon)} { test config } | get resolved') true
+    assert (ok $dir 'let c = test config; with-env {NU_TEST: ($c | to nuon)} { test config } | get resolved')
   }}
 
   {name: 'config: list and record keys are type-checked, an empty $env.NU_TEST counts as unset' run: {||

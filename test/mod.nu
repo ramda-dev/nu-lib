@@ -84,9 +84,34 @@ const DEFAULTS: record = {
 }
 # Variables kept when scrubbing: enough to find programs, locate home/temp, and render text.
 const KEEP: list<string> = [
-  PATH Path HOME USER USERNAME LOGNAME SHELL TERM COLORTERM LANG LANGUAGE TZ TMPDIR TEMP TMP
-  XDG_RUNTIME_DIR XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME
-  SYSTEMROOT SystemRoot WINDIR COMSPEC PATHEXT USERPROFILE APPDATA LOCALAPPDATA
+  PATH
+  Path
+  HOME
+  USER
+  USERNAME
+  LOGNAME
+  SHELL
+  TERM
+  COLORTERM
+  LANG
+  LANGUAGE
+  TZ
+  TMPDIR
+  TEMP
+  TMP
+  XDG_RUNTIME_DIR
+  XDG_CONFIG_HOME
+  XDG_DATA_HOME
+  XDG_CACHE_HOME
+  XDG_STATE_HOME
+  SYSTEMROOT
+  SystemRoot
+  WINDIR
+  COMSPEC
+  PATHEXT
+  USERPROFILE
+  APPDATA
+  LOCALAPPDATA
 ]
 
 # ——— suite helpers (exported for suites) ——————————————————————————————————————
@@ -199,12 +224,20 @@ export def exec [
   let piped: oneof<nothing, string>;
   let program: string = $code
     | default $piped
-    | default { error make --unspanned {msg: 'no code given' help: 'pass the code as an argument or pipe it in'} }
+    | default {
+      error make --unspanned {
+        msg: 'no code given'
+        help: 'pass the code as an argument or pipe it in'
+      }
+    }
   let cfg: record = $config | default { resolve $env.PWD {} }
   let res: record = spawn $cfg $program $vars
   if not $pipe { return $res }
   if $res.exit_code != 0 {
-    error make --unspanned {msg: $"child interpreter exited with code ($res.exit_code)" help: ($res.stderr | str trim)}
+    error make --unspanned {
+      msg: $"child interpreter exited with code ($res.exit_code)"
+      help: ($res.stderr | str trim)
+    }
   }
   $res.stdout | from nuon
 }
@@ -237,12 +270,21 @@ export def main [
   if ($suites | is-empty) {
     let searched: list<path> = $paths | default --empty { (resolve $env.PWD $flags).paths }
     let filter: string = if $match == '' { '' } else { $" whose stem matches --match '($match)'" }
-    error make --unspanned {msg: 'no test suites matched' help: $"no suite files($filter) under: ($searched | str join ', ')"}
+    error make --unspanned {
+      msg: 'no test suites matched'
+      help: $"no suite files($filter) under: ($searched | str join ', ')"
+    }
   }
   let started: datetime = date now
   # Colours (`config use-colors`) and the `timeout` program are decided once per run; children never see a terminal,
   # so test output is plain.
-  let opts: record = {test: $test verbose: $verbose debug: $debug colors: (style colors) limiter: (timeout-program)}
+  let opts: record = {
+    test: $test
+    verbose: $verbose
+    debug: $debug
+    colors: (style colors)
+    limiter: (timeout-program)
+  }
   let runs: table<suite: path, cfg: record> = $suites | each {|suite| {suite: $suite cfg: (resolve $suite $flags)} }
   warn-unbounded ($runs | get $.cfg) $opts
   let results: list = $runs | each --flatten {|r| run-suite $r.suite $r.cfg $opts }
@@ -279,12 +321,21 @@ export def discover [
   }
   let payloads: list = $res.stdout | tagged | where ($it | describe) =~ '^(table|list)'
   if ($payloads | is-empty) {
-    error make --unspanned {msg: $"could not load suite ($file)" help: 'the child interpreter reported no definitions'}
+    error make --unspanned {
+      msg: $"could not load suite ($file)"
+      help: 'the child interpreter reported no definitions'
+    }
   }
   let found: table = $payloads | last
   # Definition order (the order of `def`s in the file), not scope order (alphabetical).
-  $defined | uniq | each {|n| $found | where name == $n | first } | compact
-  | each {|c| {name: $c.name role: (role $c) ignore: (($c.description | default '') =~ $IGNORE or 'ignore' in $c.attributes) positional: $c.signatures} }
+  $defined | uniq | each {|n| $found | where name == $n | first } | compact | each {||
+    {
+      name: $in.name
+      role: (role $in)
+      ignore: (($in.description | default '') =~ $IGNORE or 'ignore' in $in.attributes)
+      positional: $in.signatures
+    }
+  }
   | where role != null
 }
 
@@ -336,16 +387,25 @@ export def init [
   }
   let names: list<string> = $suites | default --empty [($env.PWD | path basename)]
   [
-    {path: ($env.PWD | path join $PROJECT_FILE) text: ($project | to nuon --indent 2)}
+    {
+      path: ($env.PWD | path join $PROJECT_FILE)
+      text: ($project | to nuon --indent 2)
+    }
     {path: $seam text: ($SEAM | str replace '{module}' $module_line)}
-    ...($names | each {|n| {path: ($dir | path join $"($n | str replace --regex '\.nu$' '').nu") text: ($STUB | str replace --all '{name}' $n)} })
+    ...(
+      $names | each {|n|
+        {
+          path: ($dir | path join $"($n | str replace --regex \.nu$ '').nu")
+          text: ($STUB | str replace --all '{name}' $n)
+        }
+      }
+    )
   ] | each {|f|
     if ($f.path | path exists) and not $force { return {path: $f.path action: kept} }
     $f.text | save --force $f.path
     {path: $f.path action: written}
   }
 }
-
 
 # ——— configuration internals ——————————————————————————————————————————————————
 
@@ -366,13 +426,9 @@ def flag-layer [
     jobs: $jobs
     scrub: (if $no_scrub { false })
     sandbox: (if $sandbox { true } else if $no_sandbox { false })
-  } | compact-record | normalize-layer $env.PWD flags
+  } | record where value != null | normalize-layer $env.PWD flags
 }
 
-def compact-record []: record -> record { record where value != null }
-
-# Validate a partial configuration layer and make its paths absolute relative to `base`. `--internal` also admits the
-# keys the runner adds to a resolved configuration (`resolved`, `project`).
 def normalize-layer [base: path source: string --internal]: record -> record {
   let layer: record;
   let known: list<string> = $DEFAULTS | columns | if $internal { append [resolved project] } else { }
@@ -384,7 +440,10 @@ def normalize-layer [base: path source: string --internal]: record -> record {
     }
   }
   if ($layer.isolation? != null) and ($layer.isolation not-in $ISOLATION) {
-    error make --unspanned {msg: $"invalid isolation '($layer.isolation)' in ($source)" help: $"expected one of: ($ISOLATION | str join ', ')"}
+    error make --unspanned {
+      msg: $"invalid isolation '($layer.isolation)' in ($source)"
+      help: $"expected one of: ($ISOLATION | str join ', ')"
+    }
   }
   # `path join` keeps an absolute right-hand side as is.
   for key in [scrub sandbox] {
@@ -393,25 +452,37 @@ def normalize-layer [base: path source: string --internal]: record -> record {
       error make --unspanned {msg: $"invalid ($key) '($v)' in ($source)" help: 'expected true or false'}
     }
   }
-  let t: any = $layer | get --optional $.timeout
+  let t: any = $layer.timeout?
   if $t != null and (($t | describe) != duration or $t < 0sec) {
-    error make --unspanned {msg: $"invalid timeout '($t)' in ($source)" help: 'expected a duration such as 30sec (0sec: no limit)'}
+    error make --unspanned {
+      msg: $"invalid timeout '($t)' in ($source)"
+      help: 'expected a duration such as 30sec (0sec: no limit)'
+    }
   }
   for key in [depth jobs] {
     let v: any = $layer | get --optional $key
     if $v != null and (($v | describe) != int or $v < 1) {
-      error make --unspanned {msg: $"invalid ($key) '($v)' in ($source)" help: 'expected an integer of at least 1'}
+      error make --unspanned {
+        msg: $"invalid ($key) '($v)' in ($source)"
+        help: 'expected an integer of at least 1'
+      }
     }
   }
   for key in [paths lib-dirs passthrough] {
     let v: any = $layer | get --optional $key
     if $v != null and not (($v | describe) starts-with list and ($v | all ($it | describe) == string)) {
-      error make --unspanned {msg: $"invalid ($key) '($v)' in ($source)" help: 'expected a list of strings such as [tests/suites]'}
+      error make --unspanned {
+        msg: $"invalid ($key) '($v)' in ($source)"
+        help: 'expected a list of strings such as [tests/suites]'
+      }
     }
   }
-  let e: any = $layer | get --optional $.env
+  let e: any = $layer.env?
   if $e != null and not (($e | describe) starts-with record) {
-    error make --unspanned {msg: $"invalid env '($e)' in ($source)" help: 'expected a record of variable names to values such as {LOG: run.log}'}
+    error make --unspanned {
+      msg: $"invalid env '($e)' in ($source)"
+      help: 'expected a record of variable names to values such as {LOG: run.log}'
+    }
   }
   let absolute: closure = {|p|
     let p: string = if ($p | str starts-with '~') { $p | path expand } else { $p }
@@ -461,12 +532,12 @@ def project-layer [file: oneof<path, nothing>]: nothing -> record {
 # Combine layers (lowest precedence first) into an effective configuration.
 def combine [...layers: record]: nothing -> record {
   let merged: record = $layers | reduce --fold $DEFAULTS {|layer acc|
-    $acc
-    | merge ($layer | reject --optional $.lib-dirs $.passthrough $.env)
-    | update $.lib-dirs { prepend ($layer.lib-dirs? | default []) }
-    | update $.passthrough { prepend ($layer.passthrough? | default []) }
-    | update $.env { merge ($layer.env? | default {}) }
-  }
+      $acc
+      | merge ($layer | reject --optional $.lib-dirs $.passthrough $.env)
+      | update $.lib-dirs { prepend ($layer.lib-dirs? | default []) }
+      | update $.passthrough { prepend ($layer.passthrough? | default []) }
+      | update $.env { merge ($layer.env? | default {}) }
+    }
   $merged
   | update $.paths { path expand } # only the defaults can still be relative: they resolve from $env.PWD
   | update $.lib-dirs { append $HOME | path expand | uniq }
@@ -512,23 +583,23 @@ def find-suites [paths: list<path> flags: record]: nothing -> list<path> {
     $found
   }
   let depth: int = $flags.depth? | default (resolve $env.PWD $flags).depth
-  $roots | each {|r|
+  $roots | each --flatten {|r|
     match ($r | path type) {
       file => [$r]
       dir => (glob --no-dir --depth=$depth ($r | path join '**' '*.nu') | where ($it | path basename) != mod.nu | sort)
       _ => []
     }
-  } | flatten | uniq
+  } | uniq
 }
 
 # Names a suite file defines with `def` (quoted or bare), regardless of what it imports.
 def defined-names []: string -> list<string> {
-  parse --regex $DEF_RX | each {|m|
+  parse --regex $DEF_RX | each --flatten {|m|
     let quoted: oneof<string, nothing> = [$m.dq? $m.sq?] | compact --empty | first
     if $quoted == null { return ([$m.bq? $m.bare?] | compact --empty | first) }
     # The parser's own reading of the literal (escapes, doubled quotes); failing that, the text between the quotes.
     try { $quoted | from nuon | into string } catch { $quoted | str substring 1..<(($quoted | str length) - 1) }
-  }
+  } | compact | uniq
 }
 
 # The runner role of a command: test, a hook, or null.
@@ -559,29 +630,29 @@ def run-suite [suite: path cfg: record opts: record]: nothing -> list {
   }
   let cmds: table = $found.cmds
   let hooks: record = $HOOKS | each {|h| {$h: ($cmds | where role == $h | get $.name)} } | into record
-  let wanted: table = $cmds | where role == test | where $opts.test == '' or $it.name =~ $opts.test
-  let ignored: list = $wanted | where $it.ignore | each {|t| {name: $t.name status: skip duration: 0sec error: 'ignored'} }
+  let wanted: table = $cmds | where role == test | where $opts.test == '' or name =~ $opts.test
+  let ignored: list = $wanted | where $it.ignore | each {|t| {name: $t.name status: skip duration: 0sec error: ignored} }
   let runnable: table = $wanted | where not $it.ignore
   # A test is called by writing its name into the child program, so the name must parse as bare words; it is called
   # without arguments, so it must not require one.
   let callable: closure = {|n| $n =~ $CALLABLE and $n !~ $UNCALLABLE_WORD }
   let uncallable: list = $runnable | where not (do $callable $it.name) or $it.positional | each {|t|
-    let why: string = if (do $callable $t.name) {
-      'this test takes a required argument: tests and hooks take none'
-    } else {
-      "this name cannot be called: remove quotes, brackets, braces, | ; # ^ % >, words starting with $, and bare = or && words"
+      let why: string = if (do $callable $t.name) {
+        'this test takes a required argument: tests and hooks take none'
+      } else {
+        "this name cannot be called: remove quotes, brackets, braces, | ; # ^ % >, words starting with $, and bare = or && words"
+      }
+      {name: $t.name status: error duration: 0sec error: $why}
     }
-    {name: $t.name status: error duration: 0sec error: $why}
-  }
   let names: list<string> = $runnable | where (do $callable $it.name) and not $it.positional | get $.name
   # A hook is written into every test's chain: one the runner cannot call would break the whole child program.
   let reason: oneof<nothing, string> = $cmds | where role in $HOOKS | each {|h|
-    if not (do $callable $h.name) {
-      $"the hook '($h.name)' cannot be called: hooks follow the same naming rule as tests"
-    } else if $h.positional {
-      $"the hook '($h.name)' takes a required argument: tests and hooks take none"
-    }
-  } | first
+      if not (do $callable $h.name) {
+        $"the hook '($h.name)' cannot be called: hooks follow the same naming rule as tests"
+      } else if $h.positional {
+        $"the hook '($h.name)' takes a required argument: tests and hooks take none"
+      }
+    } | first
   if $reason != null {
     let blocked: list = $runnable | each {|t| {name: $t.name status: error duration: 0sec error: $reason} }
     for row in [...$ignored ...$blocked] { render $row $opts }
@@ -618,13 +689,20 @@ def run-child [suite: path cfg: record hooks: record names: list<string> opts: r
   let why: string = if $res.exit_code == 124 and $cfg.timeout > 0sec and $elapsed >= $cfg.timeout {
     # Exit code 124 alone is not a timeout (a test may `exit 124`): the child must also have run for the bound.
     $"child interpreter timed out after ($cfg.timeout)"
-  } else if ($rows | is-empty) and $res.stderr =~ 'nu::parser::' {
+  } else if ($rows | is-empty) and $res.stderr =~ nu::parser:: {
     # The suite itself loaded during discovery, so a parser error before any row is in the generated program.
     $"the child program did not parse: ($res.stderr | lines | compact --empty | first); a test or hook name the runner cannot call?"
   } else {
     $"child interpreter exited with code ($res.exit_code) before reporting"
   }
-  let crashed: list = $missing | each {|n| {name: $n status: error duration: 0sec error: $"($why)\n($res.stderr | str trim)"} }
+  let crashed: list = $missing | each {||
+      {
+        name: $in
+        status: error
+        duration: 0sec
+        error: $"($why)\n($res.stderr | str trim)"
+      }
+    }
   let all: list = [...$rows ...$crashed]
   # `(after all)` rows are rendered by the caller, once per suite.
   for row in ($all | where name != '(after all)') { render $row $opts }
@@ -653,8 +731,8 @@ def program [suite: path hooks: record names: list<string>]: nothing -> string {
     $"if $__suite.ok { try { $__suite.ctx | (chain $hooks.after-all) | ignore } catch {|e| __nutest_emit {name: '\(after all\)' status: error duration: 0sec error: \(__nutest_text $e\)} } }"
   }
   let tests: list<string> = $names | each {|n|
-    let q: string = $n | to nuon
-    $"do {
+      let q: string = $n | to nuon
+      $"do {
   let __start = date now
   let __res = if not $__suite.ok { __nutest_hook_row 'before all' $__suite.error } else {
     try {
@@ -670,7 +748,7 @@ def program [suite: path hooks: record names: list<string>]: nothing -> string {
   }
   __nutest_emit \($__res | insert name ($q) | insert duration \(\(date now\) - $__start\)\)
 }"
-  }
+    }
   [
     $"source ($suite | to nuon)"
     # The leading newline puts the marker at a line start even after output without a trailing newline.
@@ -715,14 +793,16 @@ def spawn [
 
 def spawn-script [cfg: record vars: record script: path limiter: list<path>]: nothing -> record<stdout: string, stderr: string, exit_code: int> {
   let args: list<string> = [
-    --no-config-file --table-mode=none --error-style=plain
+    --no-config-file
+    --table-mode=none
+    --error-style=plain
     $"--include-path=($cfg.lib-dirs | str join (char esep))"
     $script
   ]
   # Children get an empty stdin and, where `setsid` exists, no controlling terminal: a test that waits for input
   # (`input`, a prompt, a TUI) fails instead of hanging the run. `input` reads the terminal, not stdin, so an
   # empty stdin alone is not enough.
-  let detach: list<string> = which --all setsid | where type == external | get --optional $.0.path | each {|p| [$p --wait] } | default []
+  let detach: list<string> = which --all setsid | where type == external | get $.0?.path | each {|p| [$p --wait] } | default []
   let limit: list<string> = if $cfg.timeout > 0sec {
     $limiter | each --flatten {|p| [$p --kill-after=5 $"($cfg.timeout / 1sec)"] }
   } else { [] }
@@ -735,13 +815,21 @@ def spawn-script [cfg: record vars: record script: path limiter: list<path>]: no
     # `env -i` builds the child's environment from scratch. `hide-env` cannot be relied on: once a `do --env` has
     # run anywhere up the call stack (common in tests and hooks), it silently stops hiding anything.
     let assignments: list<string> = $kept | merge $vars | items {|k v| $"($k)=($v | env-text)" }
-    let command: list<string> = [...$detach ...$limit $env_bin.0.path '-i' ...$assignments $nu.current-exe ...$args]
+    let command: list<string> = [
+      ...$detach
+      ...$limit
+      $env_bin.0.path
+      '-i'
+      ...$assignments
+      $nu.current-exe
+      ...$args
+    ] | compact
     return ('' | run-external ...$command | complete)
   }
   # No `env` program (native Windows): hide what we can; see the caveat above.
   let hidden: list<string> = $env | columns | where (
-    $kept not-has $it and $it not-in [PWD FILE_PWD CURRENT_FILE config]
-  )
+      $kept not-has $it and $it not-in [PWD FILE_PWD CURRENT_FILE config]
+    )
   do { hide-env ...$hidden; with-env $vars { '' | run-external ...$launch | complete } }
 }
 
@@ -780,7 +868,12 @@ def env-text []: any -> string {
 def error-text []: record -> string {
   let e: record;
   let d: record = $e.details? | default {msg: $e.msg}
-  [$d.msg ...($d.labels? | default [] | get --optional $.text | default []) $d.help? ...($d.inner? | default [] | get --optional $.msg | default [])]
+  [
+    $d.msg
+    ...($d.labels? | default [] | get $.text? | default [])
+    $d.help?
+    ...($d.inner? | default [] | get $.msg? | default [])
+  ]
   | compact --empty
   | uniq # a label often repeats the message
   | str join (char newline)
@@ -795,7 +888,7 @@ def render [row: record opts: record]: nothing -> nothing {
   let color: string = match $row.status { ok => 'green' skip => 'yellow' _ => 'red' }
   let name: string = $row.name | str replace --regex '^test ' ''
   let reason: string = if $row.status == skip and $row.error != null { $" ($'— ($row.error)' | tint attr_dimmed $c)" } else { '' }
-  let ms: float = ($row.duration / 1ms) | math round --precision 1
+  let ms: float = $row.duration / 1ms | math round --precision 1
   print --stderr $"  ($'[($row.status)]' | tint $color $c) ($name) ($'($ms)ms' | tint attr_dimmed $c)($reason)"
   if ($opts.verbose or $row.status == error) and $row.status in [fail error] and $row.error != null {
     $row.error | lines | each { $"      ($in)" } | str join (char newline) | print --stderr $in
@@ -805,12 +898,14 @@ def render [row: record opts: record]: nothing -> nothing {
 def summarize [results: list elapsed: duration strict: bool colors: bool]: nothing -> nothing {
   let count: closure = {|s| $results | where status == $s | length }
   let failed: int = (do $count fail) + (do $count error)
-  print --stderr ([
-    ($'(do $count ok) passed' | tint green $colors)
-    ($'($failed) failed' | tint red $colors)
-    ($'(do $count skip) skipped' | tint yellow $colors)
-    ($'in (($elapsed / 1sec) | math round --precision 2)s' | tint attr_dimmed $colors)
-  ] | str join ', ')
+  print --stderr (
+    [
+      ($'(do $count ok) passed' | tint green $colors)
+      ($'($failed) failed' | tint red $colors)
+      ($'(do $count skip) skipped' | tint yellow $colors)
+      ($'in (($elapsed / 1sec) | math round --precision 2)s' | tint attr_dimmed $colors)
+    ] | str join ', '
+  )
   if $strict and $failed > 0 { error make --unspanned {msg: $"($failed) test\(s) failed"} }
 }
 
@@ -831,14 +926,14 @@ def relpath [from: path to: path]: nothing -> string {
 
 # Suite files visible to the command line being completed: the path arguments typed so far, else the configured paths.
 def _suites-on-line [context: string]: nothing -> list<path> {
-  let typed: list<path> = $context | split row --regex '\s+' | drop nth 0 | where $it !~ '^-' and ($it | path exists)
+  let typed: list<path> = $context | split row --regex \s+ | drop nth 0 | where $it !~ ^- and ($it | path exists)
   try { find-suites $typed {} } catch { [] }
 }
 
-def _suite-stems [context: string]: nothing -> list<string> {
-  _suites-on-line $context | each { path parse | get $.stem } | uniq
+def _suite-stems [buffer: string]: nothing -> list<string> {
+  _suites-on-line $buffer | each --flatten { path parse | get $.stem } | uniq
 }
 
-def _test-names [context: string]: nothing -> list<string> {
-  _suites-on-line $context | each --flatten { open --raw $in | defined-names | where $it starts-with 'test ' } | uniq | sort
+def _test-names [buffer: string]: nothing -> list<string> {
+  _suites-on-line $buffer | each --flatten { open --raw $in | defined-names | where $it starts-with 'test ' } | uniq | sort
 }
