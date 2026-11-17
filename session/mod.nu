@@ -6,13 +6,16 @@
 # `$env.ZELLIJ_AUTO_SESSION`. Opening files in an editor pane is the `edit` module's job (the original
 # `session edit` is not carried over).
 
+# nu-lint-ignore-file: unused_helper_functions
+
 # ——— imports ——————————————————————————————————————————————————————————————————
 
 use error
 
+
 # ——— types ————————————————————————————————————————————————————————————————————
 
-export type Session = record<name: string, age: duration, status: string>
+export type Session = record<name: string, created: datetime exited: bool>
 
 # ——— helpers ——————————————————————————————————————————————————————————————————
 
@@ -33,22 +36,20 @@ def --wrapped client [...args: string]: nothing -> record<stdout: string, stderr
 }
 
 # The duration of an age as the client prints it (`1day 10h 41m 15s`: humantime units).
-def into-age []: string -> duration {
-  parse --regex r#'(?<n>\d+)(?<unit>[a-z]+)'#
-  | each {|tok|
-    let n: int = $tok.n | into int
-    match $tok.unit {
-      ns => ($n * 1ns)
-      us => ($n * 1us)
-      ms => ($n * 1ms)
-      s => ($n * 1sec)
-      m => ($n * 1min)
-      h => ($n * 1hr)
-      day | days => ($n * 1day)
-      month | months => ($n * 2630016sec) # 30.44 days, as humantime defines it
-      year | years => ($n * 31557600sec) # 365.25 days
-      $unit => { error raise $"unknown age unit '($unit)'" --kind internal }
-    }
+def "into age" []: oneof<string, list<string>> -> duration {
+  parse --regex r#'(?<n>\d+)(?<unit>[a-z]+)'# | each {|row|
+    match $row.unit {
+      ns => 1ns
+      us => 1us
+      ms => 1ms
+      s => 1sec
+      m => 1min
+      h => 1hr
+      day | days => 1day
+      month | months => 2630016sec # 30.44 days, as humantime defines it
+      year | years => 31557600sec # 365.25 days
+      $unit => { error raise $"unknown age unit '($unit)'" --kind=internal }
+    } | $in * ($row.n | into int)
   } | math sum
 }
 
@@ -58,6 +59,30 @@ def config-dir []: nothing -> path {
   | default { $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join zellij }
 }
 
+
+# ——— structured ———————————————————————————————————————————————————————————————
+
+@structured --pipe-only [--no-formatting] {
+  complete | match $in {
+    {stderr: $e} if $e =~ '(?i)no active zellij sessions' => []
+    {exit_code: 0} => (
+      get $.stdout
+      | lines
+      | parse '{name} [Created {created}]{_} {exited}'
+      | update $.exited { str contains EXITED }
+      | update $.created { split words | drop | into age | (date now) - $in }
+    )
+    {exit_code: $c stderr: $e} => {
+      error raise $'unable to list sessions; zellij exited with code ($c)' --with={
+        kind: external_failure
+        help: ($e | str trim)
+      }
+    }
+  }
+}
+extern "zellij list-sessions" []
+
+
 # ——— definitions ——————————————————————————————————————————————————————————————
 
 # List Zellij sessions with their age and status.
@@ -66,29 +91,15 @@ def config-dir []: nothing -> path {
 # all gives an empty list.
 @category shells
 export def list [
-  regex?: string@_names # Only sessions whose name matches this pattern
+  regex: string@_names = .+ # Only sessions whose name matches this pattern
   --short (-s) # Return the names only
   --active (-a) # Only sessions that are still running
   --exited (-e) # Only sessions that have exited
-]: nothing -> oneof<list<string>, table<name: string, age: duration, status: string>> {
+]: nothing -> oneof<list<string>, list<Session>> {
   need-client
-  let res: record = client list-sessions --no-formatting
-  if $res.exit_code != 0 and $res.stderr =~ '(?i)no active zellij sessions' {
-    return []
-  } else if $res.exit_code != 0 {
-    error raise 'zellij could not list its sessions' --with={
-      kind: external_failure
-      help: ($res.stderr | str trim)
-    }
-  }
-  $res.stdout
-  | lines
-  | parse '{name} [Created {age} ago]{status}'
-  | update $.name { str trim }
-  | update $.status { if ($in | str trim | str starts-with '(EXITED') { 'exited' } else { 'active' } }
-  | where ($regex == null or $it.name =~ $regex)
-  | where ($active == $exited or ($active and $it.status == 'active') or ($exited and $it.status == 'exited'))
-  | if $short { get $.name } else { update $.age { into-age } }
+  zellij list-sessions
+  | where name =~ $regex and ($active == $exited or $it.exited == ($exited and not $active))
+  | if $short { get $.name } else { }
 }
 
 # Kill and delete a Zellij session, or all of them.
@@ -218,9 +229,9 @@ export def --wrapped enter [
   let session: list<string> = [$name $env.ZELLIJ_AUTO_SESSION?] | compact | take 1
   let layout: list<string> = [$layout] | compact
   let args: list<string> = if $attach {
-    [attach --create ...$session ...$rest ...($layout | each --flatten {|l| [options --default-layout $l] })]
+    [attach --create ...$session ...$rest ...($layout | each --flatten { [options --default-layout $in] })]
   } else {
-    [...($session | each --flatten {|s| [--session $s] }) ...($layout | each --flatten {|l| [--new-session-with-layout $l] }) ...$rest]
+    [...($session | each --flatten {|s| [--session $s] }) ...($layout | each --flatten { [--new-session-with-layout $in] }) ...$rest]
   }
   # the client's exit status is not the caller's concern (a session killed from inside ends the client non-zero)
   try { ^zellij ...$args }
