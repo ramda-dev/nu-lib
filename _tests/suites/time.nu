@@ -10,9 +10,9 @@ def "after each" []: record -> nothing { rm --recursive --force $in.db }
 
 # Two intervals: `#repo alpha` from 3h to 1h ago, then `beta` from 1h ago until 10 min ago.
 def seed [now: datetime]: nothing -> nothing {
-  time start '#repo' alpha --at=($now - 3hr) | ignore
-  time start beta --at=($now - 1hr) | ignore
-  time stop --at=($now - 10min) | ignore
+  time start '#repo' alpha --at=($now - 3hr)
+  time start beta --at=($now - 1hr)
+  time stop --at=($now - 10min)
 }
 
 def "test fresh database" []: record -> nothing {
@@ -40,7 +40,7 @@ def "test start closes the previous interval" []: record -> nothing {
 def "test stop at" []: record -> nothing {
   let t: record;
   $env.TIMEWARRIORDB = $t.db
-  time start beta --at=($t.now - 1hr) | ignore
+  time start beta --at=($t.now - 1hr)
   let s = time stop --at=($t.now - 10min)
   assert ((($s.end - ($t.now - 10min)) | math abs) < 1sec) 'stop --at moves the end'
   assert equal (time active) null 'nothing tracked after stop'
@@ -61,7 +61,7 @@ def "test list ranges and tag filter" []: record -> nothing {
   let t: record;
   $env.TIMEWARRIORDB = $t.db
   seed $t.now
-  time modify 1 --tags=[gamma] | ignore
+  time modify 1 --tags=[gamma]
   assert equal (time list --from=($t.now - 4hr) --to=$t.now | length) 2 'from/to range'
   assert equal (time list --span=30min | length) 1 'span ending now'
   assert equal (time list --from=($t.now - 4hr) --span=90min | length) 1 'from with span'
@@ -99,7 +99,7 @@ def "test tags counts uses" []: record -> nothing {
   let t: record;
   $env.TIMEWARRIORDB = $t.db
   seed $t.now
-  time start alpha --at=($t.now - 5min) | ignore
+  time start alpha --at=($t.now - 5min)
   let counts: record = time tags | each {|r| {($r.name): $r.count} } | into record
   assert equal $counts {'#repo': 1 alpha: 2 beta: 1} 'one row per tag with its count'
 }
@@ -108,7 +108,7 @@ def "test list rows are typed" []: record -> nothing {
   let t: record;
   $env.TIMEWARRIORDB = $t.db
   seed $t.now
-  time start open --at=($t.now - 5min) | ignore
+  time start open --at=($t.now - 5min)
   let rows = time list
   assert equal ($rows | columns) [id start end span tags annotation] 'the columns'
   assert equal ($rows | get $.id | sort) [1 2 3] 'ids'
@@ -139,7 +139,7 @@ def "test today and week" []: record -> nothing {
   let now: record = $t.now | into record
   if $now.hour == 0 and $now.minute < 10 { skip 'too close to midnight for :day' }
   $env.TIMEWARRIORDB = $t.db
-  time start x --at=($t.now - 5min) | ignore
+  time start x --at=($t.now - 5min)
   assert equal (time today | get $.tags) [[x]] 'the interval of today'
   assert equal (time week | get $.tags) [[x]] 'and of this week'
 }
@@ -156,7 +156,7 @@ def "test start without tags and in the future" []: record -> nothing {
 def "test stop returns the closed interval" []: record -> nothing {
   let t: record;
   $env.TIMEWARRIORDB = $t.db
-  time start beta --at=($t.now - 1hr) | ignore
+  time start beta --at=($t.now - 1hr)
   let s = time stop
   assert equal $s.tags [beta] 'the interval that was open'
   assert ($s.end != null) 'now closed'

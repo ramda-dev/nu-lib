@@ -98,7 +98,7 @@ def dotenv-verdict []: string -> record {
     | where kind == assignment
     | reverse
     | uniq-by key
-    | where quote != "'" and (($it.quote == '' and ($it.body | str starts-with '~')) or $it.body =~ $SHELL_VALUE)
+    | where quote != "'" and ((quote == '' and ($it.body | str starts-with '~')) or body =~ $SHELL_VALUE)
     | get $.0?.key
   if $shell == null { $parsed } else { {key: $shell} }
 }

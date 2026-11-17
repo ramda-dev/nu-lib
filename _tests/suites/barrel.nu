@@ -296,7 +296,7 @@ def "test init-local path flag" []: nothing -> nothing {
 def "test the generated file loads without the root on the include path" []: nothing -> nothing {
   with-sandbox {|ctx|
     let target: path = $ctx.code | path join nu-lib.nu
-    plain $ctx $"init-local --path ($target | to nuon)" | ignore
+    plain $ctx $"init-local --path ($target | to nuon)"
     let probe: string = '{alarm: (scope commands | where name == "alarm set" | is-not-empty) libs: $env.NU_LIB_DIRS}'
     # A fresh machine: no `--include-path`, no NU_LIB_DIRS, a working directory outside the repository (`use` also
     # looks there), a sandboxed HOME.
@@ -314,7 +314,7 @@ def "test the generated file loads without the root on the include path" []: not
 def "test the generated file gives an interactive login shell the bare local variants" []: nothing -> nothing {
   with-sandbox {|ctx|
     let target: path = $ctx.code | path join nu-lib.nu
-    plain $ctx $"init-local --path ($target | to nuon)" | ignore
+    plain $ctx $"init-local --path ($target | to nuon)"
     let probe: string = '{
       alarm: (scope commands | where name == "alarm set" | is-not-empty)
       mods: (scope commands | where name == "mods edit" | is-not-empty)

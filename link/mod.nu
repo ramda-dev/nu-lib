@@ -38,7 +38,7 @@ export def bin [
       match $os {
         windows => { rm $config.link }
         _ => {
-          let res: record = ^sudo unlink $config.link out+err>| complete
+          let res: record = sudo unlink $config.link out+err>| complete
           if $res.exit_code != 0 {
             error raise $"unable to remove the dangling link '($config.link)'" --with={
               kind: external_failure
@@ -63,9 +63,9 @@ export def bin [
   let res: record = match $os {
     windows => {
       mkdir ($config.link | path dirname)
-      ^cmd /c mklink $config.link $source out+err>| complete
+      cmd /c mklink $config.link $source out+err>| complete
     }
-    _ => { ^sudo ln -s $source $config.link out+err>| complete }
+    _ => { sudo ln -s $source $config.link out+err>| complete }
   }
   if $res.exit_code != 0 {
     error raise $"unable to link '($source)' at '($config.link)'" --with={

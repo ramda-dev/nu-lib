@@ -209,7 +209,7 @@ def "test quiet" [] { }'}
     let many = ok $dir 'test tests/suites/s.nu --jobs 4 | select name status'
     assert equal $many $one
     let start = date now
-    ok $dir 'test tests/suites/slow.nu --jobs 4 | get status' | ignore
+    ok $dir 'test tests/suites/slow.nu --jobs 4 | get status'
     let wall = (date now) - $start
     assert ($wall < 3sec) $'four 1-second tests with --jobs 4 took ($wall): not parallel'
   }}

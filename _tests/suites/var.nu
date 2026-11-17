@@ -15,12 +15,12 @@ def guard-store []: nothing -> nothing {
     skip 'needs the runner sandbox: the universal kv store would be the real one'
   }
   # start empty, also when the tests share one child (`--isolation suite`)
-  var | columns | each {|key| var --drop $key } | ignore
+  var | columns | each {|key| var --drop $key }
 }
 
 # The details of the error raised by `action`, or null when it raised nothing.
 def caught [action: closure]: nothing -> oneof<nothing, record> {
-  try { do $action | ignore; null } catch {|e| $e.details }
+  try { do $action; null } catch {|e| $e.details }
 }
 
 def "test the store is sandboxed and empty" []: nothing -> nothing {
@@ -57,15 +57,15 @@ def "test an explicit value wins over input" []: nothing -> nothing {
 
 def "test without a key the store is a record" []: nothing -> nothing {
   guard-store
-  var a 1 | ignore
-  var b [x] | ignore
+  var a 1
+  var b [x]
   assert equal (var) {a: 1 b: [x]} 'every pair'
 }
 
 def "test drop removes a key and returns its value" []: nothing -> nothing {
   guard-store
-  var a 1 | ignore
-  var b 2 | ignore
+  var a 1
+  var b 2
   assert equal (var --drop a) 1 'the dropped value'
   assert equal (var) {b: 2} 'the rest stays'
   assert equal (var --drop a 5) null 'drop wins over a value; nothing left to drop'
@@ -74,14 +74,14 @@ def "test drop removes a key and returns its value" []: nothing -> nothing {
 
 def "test ls lists key value rows" []: nothing -> nothing {
   guard-store
-  var a 1 | ignore
-  var b {c: 2} | ignore
+  var a 1
+  var b {c: 2}
   assert equal (var ls) [[key value]; [a 1] [b {c: 2}]] 'a table'
 }
 
 def "test set returns the whole store" []: nothing -> nothing {
   guard-store
-  var a 1 | ignore
+  var a 1
   assert equal (var set b 2) {a: 1 b: 2} 'the store after setting'
 }
 
@@ -98,7 +98,7 @@ def "test set from a table and a key in order" []: nothing -> nothing {
 
 def "test set overwrites a key" []: nothing -> nothing {
   guard-store
-  var a 1 | ignore
+  var a 1
   assert equal (var set a 2) {a: 2} 'the new value'
 }
 
@@ -124,16 +124,16 @@ def "test set without pairs" []: nothing -> nothing {
 
 def "test pop removes a key and returns its value" []: nothing -> nothing {
   guard-store
-  var a 1 | ignore
-  var b 2 | ignore
+  var a 1
+  var b 2
   assert equal (var pop a) 1 'the value'
   assert equal (var) {b: 2} 'the key is gone'
 }
 
 def "test pop without a key removes the last pair" []: nothing -> nothing {
   guard-store
-  var a 1 | ignore
-  var b 2 | ignore
+  var a 1
+  var b 2
   assert equal (var pop) 2 'the last listed pair'
   assert equal (var pop) 1 'then the one before'
   assert equal (var) {} 'empty'
@@ -148,7 +148,7 @@ def "test pop on an empty store is an error" []: nothing -> nothing {
 
 def "test pop of a missing key is null" []: nothing -> nothing {
   guard-store
-  var a 1 | ignore
+  var a 1
   assert equal (var pop nope) null 'no error'
   assert equal (var) {a: 1} 'nothing removed'
 }
@@ -156,7 +156,7 @@ def "test pop of a missing key is null" []: nothing -> nothing {
 def "test many pairs at once" []: nothing -> nothing {
   guard-store
   let pairs = 0..49 | each {|i| {key: $'k($i)' value: $i} }
-  $pairs | var set --silent | ignore
+  $pairs | var set --silent
   assert equal (var ls | length) 50 'every pair is stored'
   assert equal (var k49) 49 'the values are intact'
 }

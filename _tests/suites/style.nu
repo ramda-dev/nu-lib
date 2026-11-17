@@ -8,7 +8,7 @@ use ../mod.nu *
 
 # The details of the error raised by `action`, or null when it raised nothing.
 def caught [action: closure]: nothing -> oneof<nothing, record> {
-  try { do $action | ignore; null } catch {|e| $e.details }
+  try { do $action; null } catch {|e| $e.details }
 }
 
 def --env "before each" []: nothing -> nothing { $env.config.use_ansi_coloring = true }

@@ -28,21 +28,20 @@ def with-workspace [body: closure]: nothing -> nothing {
     let log: path = $ctx.code | path join calls.log
     let panes: path = $ctx.code | path join panes.json
     mkdir ($dir | path join sub deep) $stubs
-    [top.txt sub/a.txt sub/b.txt sub/deep/c.txt] | each {|f| touch ($dir | path join $f) } | ignore
+    [top.txt sub/a.txt sub/b.txt sub/deep/c.txt] | each {|f| touch ($dir | path join $f) }
     '[]' | save $panes
     stub $stubs editor $"{ echo \"EDITOR\"; echo \"CWD:$\(pwd)\"; for a in \"$@\"; do echo \"ARG:$a\"; done; } >> '($log)'"
-    | ignore
     stub $stubs zellij ([
       $"echo \"ZELLIJ:$*\" >> '($log)'"
       $"case \"$*\" in 'action list-panes'*) cat '($panes)';; *) echo terminal_9;; esac"
-    ] | str join (char newline)) | ignore
+    ] | str join (char newline))
     cd $dir
     with-env {PATH: ($env.PATH | prepend $stubs)} {
       assert equal (which zellij | get $.0.path) ($stubs | path join zellij) 'the stub shadows any real client'
       $env.config.buffer_editor = 'editor'
       do $body {dir: $dir log: $log panes: $panes}
     }
-  } | ignore
+  }
 }
 
 # The logged editor invocation: {cwd, args}.

@@ -25,11 +25,11 @@ export alias "powershell x" = powershell -nop -noni -ExecutionPolicy Bypass -c
 # Convert Windows path(s) to POSIX path(s) with `wslpath -u`; POSIX paths pass through unchanged.
 #
 # A path `wslpath` cannot convert becomes null, and is dropped from a list.
-export alias "path as-posix" = each {|| if $in starts-with / { } else { try { ^wslpath -u $in } } }
+export alias "path as-posix" = each {|| if $in starts-with / { } else { try { wslpath -u $in } } }
 # Convert POSIX path(s) to Windows path(s) with `wslpath -m` (forward slashes).
 #
 # A path `wslpath` cannot convert becomes null, and is dropped from a list.
-export alias "path as-windows" = each {|| try { ^wslpath -m $in } }
+export alias "path as-windows" = each {|| try { wslpath -m $in } }
 
 # ——— helpers ——————————————————————————————————————————————————————————————————
 

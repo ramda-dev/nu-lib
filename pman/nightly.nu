@@ -93,7 +93,7 @@ export def is-under [
   root: path # The directory that should contain the path
 ]: path -> bool {
   let target: path = $in | path expand --no-symlink
-  try { $target | path relative-to ($root | path expand --no-symlink) | ignore; true } catch { false }
+  try { $target | path relative-to ($root | path expand --no-symlink); true } catch { false }
 }
 
 # Headers for a request to `url`: GitHub's API gets `Authorization: Bearer $GITHUB_TOKEN` when the variable is
@@ -213,17 +213,16 @@ def download [
 def extract [archive: path dir: path]: nothing -> list<path> {
   mkdir $dir
   # GNU tar reads the `.tar.gz` builds; the bsdtar of Windows and macOS also reads the `.zip` ones.
-  let res: record = ^tar -xf $archive -C $dir | complete
+  let res: record = tar -xf $archive -C $dir | complete
   if $res.exit_code != 0 {
     error raise $"could not extract '($archive | path basename)'" --with={
       kind: external_failure
       help: ($res.stderr | str trim)
     }
   }
-  let bins: list<path> = do { cd $dir; glob '**/*' --no-dir } | where {|file|
-    let parts: record = $file | path parse
-    $parts.extension in ['' exe] and ($parts.stem == nu or ($parts.stem | str starts-with nu_plugin_))
-  } | sort-by {|file| ($file | path parse | get $.stem) != nu }
+  let bins: list<path> = do { cd $dir; glob '**/*' --no-dir }
+    | where ($it | path parse | $in.extension in ['' exe] and ($in.stem == nu or ($in.stem | str starts-with nu_plugin)))
+    | sort-by {|file| ($file | path parse | get $.stem) != nu }
   if not ($bins | any ($it | path parse | get $.stem) == nu) {
     error raise $"'($archive | path basename)' holds no nu binary" --kind not_found
   }
@@ -351,9 +350,9 @@ def sync-plugins [
     $job | ^$binary --no-config-file --stdin --commands $SYNC | complete
   } catch {|e| {exit_code: 1 stdout: '' stderr: $e.msg} }
   let rows: table = if $res.exit_code == 0 { try { $res.stdout | from nuon } } | default {
-    let reason: string = $'the new nu could not check the plugins: ($res.stderr | str trim)'
-    $plugins | each {|p| {name: $p.name filename: $p.filename action: failed message: $reason} }
-  }
+      let reason: string = $'the new nu could not check the plugins: ($res.stderr | str trim)'
+      $plugins | each {|p| {name: $p.name filename: $p.filename action: failed message: $reason} }
+    }
   for row in $rows {
     match $row.action {
       updated => { log info $'plugin ($row.name): updated from ($row.filename)' }
@@ -391,10 +390,10 @@ def rollback [dir: path registry: path]: nothing -> record {
   let tmp: path = mktemp --directory --tmpdir bump-nu-XXXXXX
   try {
     let files: list<path> = $kept | each {|file|
-      let staged: path = $tmp | path join ($file | restored-name)
-      cp --force $file $staged
-      $staged
-    }
+        let staged: path = $tmp | path join ($file | restored-name)
+        cp --force $file $staged
+        $staged
+      }
     let plugins: table = registered-plugins $registry
     let installed: list<path> = $files | install-files $dir
     rm --recursive --force $tmp
@@ -416,9 +415,9 @@ def finish [
 ]: nothing -> table {
   let nu_bin: path = $installed | where ($it | path parse | get $.stem) == nu | first
   let shipped: record = $installed | each {|file|
-    let stem: string = $file | path parse | get $.stem
-    if $stem starts-with nu_plugin_ { [($stem | str replace nu_plugin_ '') $file] }
-  } | into record
+      let stem: string = $file | path parse | get $.stem
+      if $stem starts-with nu_plugin_ { [($stem | str replace nu_plugin_ '') $file] }
+    } | into record
   let rows: table = sync-plugins $nu_bin $registry $plugins $shipped
   if $reload { reload --binary $nu_bin }
   if ($nu_bin | path expand) == ($nu.current-exe | path expand) {

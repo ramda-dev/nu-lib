@@ -60,13 +60,13 @@ def get-editor []: nothing -> list<string> {
 # The id (`terminal_<n>`) of a visible terminal pane that looks like an editor: named `editor` or
 # `Editing: …`, or running the editor program.
 def get-editor-pane-id [program: string]: nothing -> oneof<nothing, string> {
-  ^zellij action list-panes --json --command
+  zellij action list-panes --json --command
   | from json
   # A visible terminal pane named like an editor, or running the program (the command's first word, by basename, not
   # a substring: `vi` is not in `vite dev`).
   | where (
     not $it.is_plugin and not $it.is_suppressed and (
-      $it.title =~ '^(editor$|(E|e)diting:\s)' or ($it.pane_command? | default '' | split row ' ' | first | path basename) == $program
+      title =~ '^(editor$|(E|e)diting:\s)' or ($it.pane_command? | default '' | split row ' ' | first | path basename) == $program
     )
   )
   | get --optional $.0.id
@@ -77,13 +77,13 @@ def get-editor-pane-id [program: string]: nothing -> oneof<nothing, string> {
 def with-zellij [...items: string]: nothing -> nothing {
   let editor: list<string> = get-editor
   # focus an existing editor pane, so that it is the one replaced instead of the current one
-  get-editor-pane-id ($editor | first | path basename) | each {|id| ^zellij action focus-pane-id $id }
+  get-editor-pane-id ($editor | first | path basename) | each {|id| zellij action focus-pane-id $id }
   match ($items | length) {
-    1 => { ^zellij edit --in-place --cwd $env.PWD ($items | first) }
+    1 => { zellij edit --in-place --cwd $env.PWD ($items | first) }
     _ => {
       # the same name prefix lets later calls find and replace this pane
       let name: string = $'Editing: ($items | first | path parse | get $.stem), ...'
-      ^zellij run --name=($name) --in-place --close-on-exit --cwd $env.PWD -- ...$editor ...$items
+      zellij run --name=($name) --in-place --close-on-exit --cwd $env.PWD -- $editor $items
     }
   }
   # print the pane identifier for saliency while still returning `null`

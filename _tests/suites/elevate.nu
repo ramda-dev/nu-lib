@@ -25,13 +25,13 @@ def with-sudo [body: closure --mode: string = print]: nothing -> nothing {
   with-sandbox {|ctx|
     let stubs: path = $ctx.code | path join stubs
     mkdir $stubs
-    stub $stubs sudo (if $mode == print { $PRINT_ARGS } else { 'exec "$@"' }) | ignore
+    stub $stubs sudo (if $mode == print { $PRINT_ARGS } else { 'exec "$@"' })
     let path: list<string> = $env.PATH | prepend $stubs
     with-env {PATH: $path} {
       assert equal (which sudo | get $.0.path) ($stubs | path join sudo) 'the stub sudo shadows the real one'
       do $body {ctx: $ctx stubs: $stubs path: $path}
     }
-  } | ignore
+  }
 }
 
 # The `ARG:` lines of some output.
@@ -41,11 +41,10 @@ def args-of []: oneof<string, nothing> -> list<string> {
 
 # Stub commands for `with-auth`, in `dir`; `authcmd` fails with a 401 until the file `<dir>/token` exists.
 def auth-stubs [dir: path]: nothing -> nothing {
-  stub $dir okcmd 'echo "out:$*"' | ignore
-  stub $dir failcmd 'echo "partial"; echo "boom" >&2; exit 3' | ignore
+  stub $dir okcmd 'echo "out:$*"'
+  stub $dir failcmd 'echo "partial"; echo "boom" >&2; exit 3'
   let token: path = $dir | path join token
   stub $dir authcmd $"if [ -e '($token)' ]; then echo 'ok:'\"$*\"; else echo 'HTTP 401 Unauthorized' >&2; exit 1; fi"
-  | ignore
 }
 
 # ——— elevate ——————————————————————————————————————————————————————————————————
@@ -211,7 +210,7 @@ def "test with auth pattern decides what an auth failure is" []: nothing -> noth
     auth-stubs $t.stubs
     let marker: path = $t.stubs | path join logged-in
     let code: string = $"use elevate; try { elevate with-auth --pattern=boom --login={|| touch '($marker)' } failcmd x }"
-    ^$nu.current-exe --no-config-file --interactive --include-path $ROOT -c $code | complete | ignore
+    ^$nu.current-exe --no-config-file --interactive --include-path $ROOT -c $code | complete
     assert ($marker | path exists) 'a custom pattern triggers the login'
   }
 }

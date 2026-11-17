@@ -13,7 +13,7 @@ def home []: nothing -> path {
 # ——— definitions ——————————————————————————————————————————————————————————————
 
 # List the detected SYCL devices.
-export alias device = ^ls-sycl-device
+export alias device = ls-sycl-device
 
 # Show the `systemctl` status for the Ollama service.
 #
@@ -23,7 +23,7 @@ export alias device = ^ls-sycl-device
 export def status []: nothing -> record<state: string, spawned: oneof<datetime, string, nothing>> {
   # `systemctl status` exits non-zero for inactive units too, so the `Active:` line decides, not the exit code
   # nu-lint-ignore: check_complete_exit_code
-  let result: record = ^systemctl status ipex-llm-ollama --no-pager --lines 0 out+err>| complete
+  let result: record = systemctl status ipex-llm-ollama --no-pager --lines 0 out+err>| complete
   let active: list<string> = $result.stdout | lines | str trim | where $it starts-with 'Active: '
   if ($active | is-empty) {
     error raise $"no status reported by systemctl \(exit code ($result.exit_code)\)" --with={
@@ -48,7 +48,7 @@ export def status []: nothing -> record<state: string, spawned: oneof<datetime, 
 @category system
 export def serve []: nothing -> record {
   let dir: path = home
-  let id: int = job spawn --description='ipex-llm-ollama_serve' { cd $dir; ^bash start-ollama.sh out+err>| job send 0 }
+  let id: int = job spawn --description='ipex-llm-ollama_serve' { cd $dir; bash start-ollama.sh out+err>| job send 0 }
   print $'server started; its output arrives with `job recv` when it exits'
   job list | where id == $id | first | default {id: $id description: 'ipex-llm-ollama_serve'}
 }

@@ -331,13 +331,15 @@ export def rules [
   # it runs through): when one of them is absent, the rule is not judged there.
   let boxes: table = $rows | where ($it.type | is-container-type)
   let rows: list<record> = $rows | each {|row|
-    let above: table = $boxes | where ($row.repr | str starts-with $'($it.repr).')
-    $row | insert $.guards (if $row.through == null {
-      $above | where through == null | get $.whole
-    } else {
-      $above | where through != null | get $.tail
-    })
-  }
+      let above: table = $boxes | where ($row.repr | str starts-with $'($it.repr).')
+      $row | insert $.guards (
+        if $row.through == null {
+          $above | where through == null | get $.whole
+        } else {
+          $above | where through != null | get $.tail
+        }
+      )
+    }
 
   # For `bail` mode, we use for loops and return immediately when we hit an error
   if $bail {
@@ -377,10 +379,7 @@ export def rules [
     }
   let dead: list<cell-path> = $judged | where $it.dead | get $.at
   let verdicts: table = $indexed
-    | where {|r|
-      let before: list<cell-path> = $judged | where $it.dead and $it.index < $r.index | get $.at
-      $before == [] or not ($before | under $r.item.at)
-    }
+    | where ($judged | where $it.dead and index < $it.index | $in.at == [] or not ($in.at | under $it.item.at))
     | each --flatten {|r|
       let box: oneof<nothing, record> = $judged | where index == $r.index | first
       if $box != null { $box.verdicts } else { $data | evaluate-single-rule $r.item | append [] | get $.result | flatten --all }
@@ -507,16 +506,18 @@ def failure [
   }
   let literal: list<string> = $preset.literal? | default []
   let fields: record = $context | record each {|key value|
-    {
-      $key: (if $preset.syntax or $key == at {
-        $'($value)' | nu-highlight
-      } else if $key in $literal {
-        $"'($value)'" | style paint g --colors=true
-      } else {
-        $value
-      })
+      {
+        $key: (
+          if $preset.syntax or $key == at {
+            $'($value)' | nu-highlight
+          } else if $key in $literal {
+            $"'($value)'" | style paint g --colors=true
+          } else {
+            $value
+          }
+        )
+      }
     }
-  }
   {
     path: $context.at
     rule: $rule

@@ -83,7 +83,7 @@ export module test {
   export def --env before [kind: string = 'test']: list<ProjectInfo> -> nothing {
     let t: string = kind-to-table-name $kind
     $env.project_testing = {kind: $kind table: $t}
-    for proj in $in { kv set --universal --table=$t $proj.name $proj | ignore }
+    for proj in $in { kv set --universal --table=$t $proj.name $proj }
   }
 
   # Cleanup fixture for projects registered with `test before`.
@@ -98,7 +98,7 @@ export module test {
     } else {
       # Hidden first: after a `def --env` call such as `kv drop`, `hide-env` no longer reaches the caller.
       hide-env project_testing
-      for k in (kv list --universal --table=$t | get $.key) { kv drop --universal --table=$t $k | ignore }
+      for k in (kv list --universal --table=$t | get $.key) { kv drop --universal --table=$t $k }
     }
   }
 }
@@ -171,7 +171,7 @@ export def scan [
   # A full reset discards the old registry's other keys only after the new snapshot is in place: a scan that fails
   # or is killed before this point leaves the previous snapshot (and the hydration mark) untouched.
   if $full_reset {
-    for key in (list-meta | get $.key | where $it not-in [snapshot hydrating]) { drop-meta $key | ignore }
+    for key in (list-meta | get $.key | where $it not-in [snapshot hydrating]) { drop-meta $key }
   }
   $last_scan
 }
@@ -263,7 +263,7 @@ export def --env main [
   --exec (-x): closure
   # Run a closure from the project root (with the `zellij::pwd::auto-switch` hook disabled, if registered)
 ]: nothing -> oneof<nothing, any> {
-  if $scan { scan --force | ignore }
+  if $scan { scan --force }
   list --kind=$kind --long
   | match ($query | describe) { nothing => () string => { where name =~ $query } }
   | match ($in | length) {
@@ -321,13 +321,13 @@ def snapshot []: nothing -> oneof<nothing, record> { get-meta snapshot }
 # (there is no job to wait for); an interactive shell leaves it to the import-time job and sees nothing yet.
 def snapshot-for-reading []: nothing -> oneof<nothing, record> {
   snapshot | default {
-    if (has-workspace) and not $nu.is-interactive { scan --force | ignore; snapshot } else { null }
+    if (has-workspace) and not $nu.is-interactive { scan --force; snapshot } else { null }
   }
 }
 
 def write-snapshot []: record -> nothing {
   let snap: record;
-  set-meta snapshot $snap | ignore
+  set-meta snapshot $snap
 }
 
 # A snapshot's rows of one kind (none for a null snapshot or an unknown kind).
@@ -373,13 +373,13 @@ def hydrate []: nothing -> nothing { # nu-lint-ignore: unused_helper_functions
   if $snap != null and not (is-stale $snap) { return }
   let mark: oneof<nothing, datetime> = get-meta hydrating
   if $mark != null and (date now) - $mark < $HYDRATING { return }
-  set-meta hydrating (date now) | ignore
+  set-meta hydrating (date now)
   # Past the TTL every registered project is inspected again (a remote changes inside an unchanged directory); a
   # changed layout only needs the new directories inspected and the missing ones dropped.
   let expired: bool = $snap == null or (date now) - $snap.stamp.at > $TTL
   job spawn --auto-kill --description $JOB {||
-    try { scan --force --reset=$expired | ignore } catch {|e| log warning $"proj: the background scan failed: ($e.msg)" }
-    drop-meta hydrating | ignore
+    try { scan --force --reset=$expired } catch {|e| log warning $"proj: the background scan failed: ($e.msg)" }
+    drop-meta hydrating
   } | ignore
 }
 
@@ -426,7 +426,7 @@ def inspect [root: path name: string]: nothing -> record {
   let base: string = $root | path basename
   if ($root | path join '.git' | path exists) {
     # Projects with source-control - collect repository information
-    ^git -C $root config remote.origin.url
+    git -C $root config remote.origin.url
     | ignore --stderr
     | if ($in | is-not-empty) {
       # If it exists, parse repository name, owner, and type (remote domain)
@@ -434,7 +434,7 @@ def inspect [root: path name: string]: nothing -> record {
       # Ensure unmatched URLs fallthrough to no-remote arm
     } | default (
       # Else, populate from available data
-      ^git -C $root config user.name
+      git -C $root config user.name
       | ignore --stderr
       | match $in { '' => ({}) $u => {repo: $'($u)/($base)'} }
     ) | insert $.vcs git

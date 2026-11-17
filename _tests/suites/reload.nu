@@ -25,14 +25,14 @@ def with-stubs [body: closure]: nothing -> nothing {
     let log: path = $ctx.code | path join reset.log
     mkdir $stubs
     # `tty=` records whether stdin is a terminal: a piped record reaching `reset` shows up as `tty=no`.
-    stub $stubs reset $"echo \"RESET:$* tty=$\([ -t 0 ] && echo yes || echo no\)\" >> '($log)'" | ignore
+    stub $stubs reset $"echo \"RESET:$* tty=$\([ -t 0 ] && echo yes || echo no\)\" >> '($log)'"
     let binary: path = stub $ctx.code fresh-nu 'echo "ARGS:$*"; echo "FOO=${FOO-unset}"; echo "PID=${pid-unset}"'
     let path: list<string> = $env.PATH | prepend $stubs
     with-env {PATH: $path} {
       assert equal (which reset | get $.0.path) ($stubs | path join reset) 'the stub reset shadows the real one'
       do $body {ctx: $ctx binary: $binary log: $log path: $path}
     }
-  } | ignore
+  }
 }
 
 # Run nu `code` (after `use reload`) in a grandchild (extra nu `--flags`) with stdin on a pipe; return its output
@@ -77,7 +77,7 @@ def "test a piped record is merged into the environment" []: nothing -> nothing 
 
 def "test skips the terminal reset without a terminal" []: nothing -> nothing {
   with-stubs {|t|
-    run-nu $"reload --binary '($t.binary)'" | ignore
+    run-nu $"reload --binary '($t.binary)'"
     assert equal (resets $t.log) [] 'reset is not run'
   }
 }
@@ -100,7 +100,7 @@ def "test a piped record never reaches reset" []: nothing -> nothing {
 
 def "test erase restores control characters too" []: nothing -> nothing {
   with-stubs {|t|
-    run-tty $t $"reload --erase --binary '($t.binary)'" | ignore
+    run-tty $t $"reload --erase --binary '($t.binary)'"
     assert equal (resets $t.log) ['RESET:-wc tty=yes'] 'reset -wc'
   }
 }

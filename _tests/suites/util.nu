@@ -6,7 +6,7 @@ use ../mod.nu *
 
 # The details of the error raised by `action`, or null when it raised nothing.
 def caught [action: closure]: nothing -> oneof<nothing, record> {
-  try { do $action | ignore; null } catch {|e| $e.details }
+  try { do $action; null } catch {|e| $e.details }
 }
 
 # Semver values cannot be compared with null or serialized; their text can.
@@ -107,7 +107,7 @@ def "test bump of two cells in the same file keeps both updates" []: nothing -> 
   with-sandbox {|ctx|
     let f: path = $ctx.code | path join two.nuon
     {a: {v: '1.0.0'} b: {v: '2.0.0'}} | to nuon | save --force $f
-    [[file cell]; [$f $.a.v] [$f $.b.v]] | util workspace bump | ignore
+    [[file cell]; [$f $.a.v] [$f $.b.v]] | util workspace bump
     assert equal (open $f) {a: {v: '1.0.1'} b: {v: '2.0.1'}} 'sequential writes: neither bump is lost'
   }
 }
@@ -249,7 +249,7 @@ def "test bump formats toml and json files" []: nothing -> nothing {
     {package: {version: '0.1.0'}} | to toml | save $toml
     {version: '0.1.0'} | to json | save $json
     with-env {PATH: [$bin ...$env.PATH] STUB_LOG: $log} {
-      [[file cell]; [$toml $.package.version] [$json $.version]] | util workspace bump | ignore
+      [[file cell]; [$toml $.package.version] [$json $.version]] | util workspace bump
     }
     assert equal (open $toml | get $.package.version) '0.1.1' 'toml is written'
     assert equal (open $json | get $.version) '0.1.1' 'json is written'

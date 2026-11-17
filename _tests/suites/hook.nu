@@ -21,7 +21,7 @@ def names [type: cell-path]: nothing -> list<string> {
 
 # The details of the error raised by `action`, or null when it raised nothing.
 def caught [action: closure]: nothing -> oneof<nothing, record> {
-  try { do $action | ignore; null } catch {|e| $e.details }
+  try { do $action; null } catch {|e| $e.details }
 }
 
 # ——— export-env ———————————————————————————————————————————————————————————————
@@ -192,15 +192,15 @@ def "test edit update turns a bare closure hook into a record" []: nothing -> no
 }
 
 def "test edit overwrite stores a closure" []: nothing -> nothing {
-  hook edit $.pre_prompt.0 --overwrite {|| 7 } | ignore
+  hook edit $.pre_prompt.0 --overwrite {|| 7 }
   assert equal (hook pre_prompt 0 | describe) closure 'the closure, not its result (H1)'
   assert equal (hook test $.pre_prompt.0) 7 'which still runs'
 }
 
 def "test edit overwrite stores text and records" []: nothing -> nothing {
-  hook edit $.pre_prompt.0 --overwrite 'print hi' | ignore
+  hook edit $.pre_prompt.0 --overwrite 'print hi'
   assert equal (hook pre_prompt 0) 'print hi' 'text'
-  hook edit $.pre_prompt.0 --overwrite {condition: {|| false } code: 'x'} | ignore
+  hook edit $.pre_prompt.0 --overwrite {condition: {|| false } code: 'x'}
   assert equal (hook pre_prompt 0 | get $.code) x 'a record'
 }
 
@@ -243,9 +243,9 @@ def "test with refuses a hook list" []: nothing -> nothing {
 }
 
 def "test edit overwrite replaces a single valued hook" []: nothing -> nothing {
-  hook edit $.display_output --overwrite 'table' | ignore
+  hook edit $.display_output --overwrite 'table'
   assert equal (hook display_output) table 'text'
-  hook edit $.display_output --overwrite {|| table } | ignore
+  hook edit $.display_output --overwrite {|| table }
   assert equal (hook show $.display_output $.code --raw | describe) closure 'a closure, still listable'
 }
 

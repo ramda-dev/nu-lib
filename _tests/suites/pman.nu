@@ -403,7 +403,7 @@ def register [ctx: record plugins: record]: nothing -> nothing {
     let file: path = $dir | path join $'nu_plugin_($name)'
     stub-plugin $file (version).version
     plugin add --plugin-config ($ctx | registry) $file
-  } | ignore
+  }
 }
 
 # The sandbox registry as `{<name>: <filename>}`.
@@ -863,7 +863,7 @@ def "test the smoke test imports the barrel and every module directory" []: noth
     with-server $ctx {|url|
       release $ctx $url $NEWER
       run-bump $ctx $'(flags $ctx $url) --yes'
-    } | ignore
+    }
     let program: string = open --raw ($ctx.code | path join nu.log.login)
     let imported: list<string> = $program | split row '; ' | where $it starts-with 'use '
       | each { str replace --regex '^use (.+?)( \*)?$' '$1' | from nuon | path basename }
@@ -976,7 +976,7 @@ def "test bump nu keeps the previous nu and plugins" []: nothing -> nothing {
 def "test rollback restores the previous build and its plugins" []: nothing -> nothing {
   with-sandbox {|ctx|
     let r: record = with-server $ctx {|url|
-      bump-over-older $ctx $url | ignore
+      bump-over-older $ctx $url
       run-bump $ctx $'(flags $ctx $url) --rollback'
     }
     let bin: path = $ctx | bin-dir

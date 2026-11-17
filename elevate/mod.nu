@@ -53,7 +53,7 @@ export def --env --wrapped sh [
     [-c ($rest | str join (char space))]
   }
   let nu_stdin: list<string> = if $stdin and ($shell | path parse | get $.stem) == nu { [--stdin] } else { [] }
-  $input | ^sudo $shell ...$nu_stdin ...$command
+  $input | sudo $shell $nu_stdin $command
 }
 
 # Run an external command and return its stdout.

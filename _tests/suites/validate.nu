@@ -131,7 +131,7 @@ def "test return-one-bails-on-the-first-failure" []: nothing -> nothing {
 
 def "test validation-with-errors" []: nothing -> nothing {
   assert equal ($GOOD | validate rules $RULES --errors) $GOOD 'a valid record passes through'
-  let raised = try { $GOOD | update $.version '2.0' | update $.doc.slug 9 | validate rules --errors $RULES | ignore; null } catch {|e| $e.details.help }
+  let raised = try { $GOOD | update $.version '2.0' | update $.doc.slug 9 | validate rules --errors $RULES; null } catch {|e| $e.details.help }
   assert str contains $raised "version is `2.0`, which is not one of [1.0]" 'first reason in help text'
   assert str contains $raised "doc.slug has type int; expected string" 'second reason in help text'
 }
@@ -191,7 +191,7 @@ def "test table-row-rules-return-structured-rows" []: nothing -> nothing {
 
 # The details of the error raised by `action`, or null when it raised nothing.
 def caught [action: closure]: nothing -> oneof<nothing, record> {
-  try { do $action | ignore; null } catch {|e| $e.details }
+  try { do $action; null } catch {|e| $e.details }
 }
 
 def "test string examples" []: nothing -> nothing {

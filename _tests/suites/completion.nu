@@ -31,7 +31,7 @@ def with-stubs [action: closure]: nothing -> nothing {
   with-sandbox {|ctx|
     stub $ctx.code fish 'printf "%s\tcommand\n" "$2"; [ -n "$FISH_STUB_OUT" ] && printf "%s\n" "$FISH_STUB_OUT"; exit 0'
     stub $ctx.code carapace 'if [ -n "$CARAPACE_STUB_OUT" ]; then printf "%s" "$CARAPACE_STUB_OUT"; else printf "[{\"value\": \"%s\"}]" "$*"; fi'
-    with-env {PATH: ($env.PATH | prepend $ctx.code)} { do $action $ctx | ignore }
+    with-env {PATH: ($env.PATH | prepend $ctx.code)} { do $action $ctx }
   }
 }
 

@@ -22,7 +22,7 @@ def stub [dir: path name: path body: string]: nothing -> path {
 def status-of [output: string --code: int = 0]: nothing -> record {
   with-sandbox {|ctx|
     let log: path = $ctx.code | path join calls.log
-    stub $ctx.code systemctl $"echo \"$*\" >> '($log)'\ncat <<'EOF'\n($output)\nEOF\nexit ($code)" | ignore
+    stub $ctx.code systemctl $"echo \"$*\" >> '($log)'\ncat <<'EOF'\n($output)\nEOF\nexit ($code)"
     with-env {PATH: ($env.PATH | prepend $ctx.code)} {
       assert equal (which systemctl | get $.0.path) ($ctx.code | path join systemctl) 'the stub systemctl is used'
       let result: record = try { {status: (ipex-llm-ollama status)} } catch {|e| {error: $e.details} }
@@ -53,7 +53,7 @@ def "test the default home sits next to the nushell data directory" []: nothing 
     let expected: path = $r.data | path dirname | path join ipex-llm-ollama
     assert equal $r.home $expected 'data-dir/../ipex-llm-ollama'
     assert equal ($r.path | last) $expected 'appended to PATH'
-  } | ignore
+  }
 }
 
 def "test a configured home is kept and added to PATH" []: nothing -> nothing {
@@ -62,21 +62,21 @@ def "test a configured home is kept and added to PATH" []: nothing -> nothing {
     let r = sandboxed $ctx $code --prelude 'use ipex-llm-ollama' --vars {IPEX_LLM_OLLAMA_HOME: /opt/ipex} --pipe
     assert equal $r.home /opt/ipex 'the configured home'
     assert ('/opt/ipex' in $r.path) 'on PATH even though the variable was set'
-  } | ignore
+  }
 }
 
 def "test loading twice adds the home once" []: nothing -> nothing {
   with-sandbox {|ctx|
     let code: string = 'use ipex-llm-ollama; $env.PATH | where $it == $env.IPEX_LLM_OLLAMA_HOME | length'
     assert equal (sandboxed $ctx $code --prelude $PRELUDE --pipe) 1 'one PATH entry'
-  } | ignore
+  }
 }
 
 def "test device runs ls sycl device from the home" []: nothing -> nothing {
   with-sandbox {|ctx|
     let home: path = $ctx.code | path join ipex
     mkdir $home
-    stub $home ls-sycl-device 'echo "devices:$*"' | ignore
+    stub $home ls-sycl-device 'echo "devices:$*"'
     # The module appends the home to PATH, so a real `ls-sycl-device` earlier on the inherited PATH would win:
     # the child gets a PATH that holds only the stub's directory and the system directories.
     let code: string = '{which: (which ls-sycl-device | get 0.path), out: (ipex-llm-ollama device --all | str trim)} | to nuon'
@@ -84,7 +84,7 @@ def "test device runs ls sycl device from the home" []: nothing -> nothing {
     let r: record = sandboxed $ctx $code --prelude 'use ipex-llm-ollama' --vars $vars --pipe
     assert equal $r.which ($home | path join ls-sycl-device) 'the stub is the one on PATH'
     assert equal $r.out 'devices:--all' 'the home is on PATH, arguments pass through'
-  } | ignore
+  }
 }
 
 # ——— status ———————————————————————————————————————————————————————————————————
@@ -123,7 +123,7 @@ def "test serve runs start ollama in the home and sends its output" []: nothing 
     let home: path = $ctx.code | path join ipex
     let stubs: path = $ctx.code | path join stubs
     mkdir $home $stubs
-    stub $stubs bash 'echo "cwd:$(pwd) args:$*"' | ignore
+    stub $stubs bash 'echo "cwd:$(pwd) args:$*"'
     with-env {PATH: ($env.PATH | prepend $stubs) IPEX_LLM_OLLAMA_HOME: $home} {
       assert equal (which bash | get $.0.path) ($stubs | path join bash) 'the stub bash is used'
       let job = ipex-llm-ollama serve
@@ -131,5 +131,5 @@ def "test serve runs start ollama in the home and sends its output" []: nothing 
       let message = job recv --timeout 10sec
       assert equal ($message | str trim) $"cwd:($home) args:start-ollama.sh" 'output arrives in the mailbox'
     }
-  } | ignore
+  }
 }

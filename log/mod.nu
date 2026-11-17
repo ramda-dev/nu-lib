@@ -28,7 +28,7 @@ export def format [
   --level (-l): string # An `ansi` name for the level (default: `std/log`'s colour for it)
 ]: nothing -> string {
   # `paint` rejects an unknown name whether or not it styles, so a typo surfaces without a terminal too.
-  if $level != null { '%LEVEL%' | style paint $level --colors=false | ignore }
+  if $level != null { '%LEVEL%' | style paint $level --colors=false }
   if not (style colors) { return ($FMT | str replace --all --regex '%ANSI_(START|STOP)%' '') }
   $FMT
   | str replace '%DATE%' ('%DATE%' | style paint wd)

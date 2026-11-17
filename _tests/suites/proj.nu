@@ -23,7 +23,6 @@ def fixture [ctx: record]: nothing -> record<ctx: record, root: path, work: path
   let work: path = $ctx.code | path join work
   [src/alpha src/beta src/gamma src/.hidden dev/tools txt/notes ext/vend]
   | each {|d| mkdir ($work | path join $d) }
-  | ignore
   git-init ($work | path join src/alpha) --remote 'git@github.com:zaynram/alpha.git'
   git-init ($work | path join src/beta) --user 'Test User'
   git-init ($work | path join src/gamma) --remote 'https://gitlab.example.io/some-org/gamma.lib'
@@ -41,7 +40,7 @@ def git-init [dir: path --remote: string --user: string]: nothing -> nothing {
 # Run a case body against a fresh workspace.
 def case [body: closure]: nothing -> nothing {
   if (which git | is-empty) { skip 'git is not installed' }
-  with-sandbox {|ctx| do $body (fixture $ctx) } | ignore
+  with-sandbox {|ctx| do $body (fixture $ctx) }
 }
 
 # Run `code` after `use proj` in a sandboxed child; return its value.
@@ -92,7 +91,7 @@ def "test scan force with nothing new counts all adds none" []: nothing -> nothi
 
 def "test scan force picks up a new directory" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'proj scan --force' | ignore
+      in-proj $fx 'proj scan --force'
       mkdir ($fx.work | path join src/delta)
       let r = in-proj $fx 'proj scan --force'
       assert equal [$r.found $r.added] [7 1]
@@ -178,7 +177,7 @@ def "test aliases project aliases renames on intake" []: nothing -> nothing {
 
 def "test prune removes missing directories and fixes counts" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'proj scan --force' | ignore # register everything
+      in-proj $fx 'proj scan --force' # register everything
       rm --recursive ($fx.work | path join txt/notes)
       let printed = in-proj $fx 'proj scan --prune' --printed
       assert equal $printed ['removed 1 projects']
@@ -209,7 +208,7 @@ def "test prune missing metadata raises a helpful error" []: nothing -> nothing 
 
 def "test reset clears stale metadata and removed projects" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'use std-rfc/kv *; kv set --universal --table=proj stale-key 1' | ignore
+      in-proj $fx 'use std-rfc/kv *; kv set --universal --table=proj stale-key 1'
       rm --recursive ($fx.work | path join ext/vend)
       let r = in-proj $fx 'use std-rfc/kv *; proj scan --reset | ignore; {stale: (kv get --universal --table=proj stale-key), names: (proj list | get name)}'
       assert equal $r.stale null
@@ -312,7 +311,7 @@ def "test scan kinds limits the scan and keeps the other counts" []: nothing -> 
 
 def "test scan kinds reset drops only that kind" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'proj scan --force' | ignore
+      in-proj $fx 'proj scan --force'
       rm --recursive ($fx.work | path join src/beta)
       let r = in-proj $fx 'proj scan --reset --kinds [src] | ignore; {names: (proj list | get name | sort), total: (proj meta total_count)}'
       assert equal $r.names [alpha gamma notes tools vend] 'src is rebuilt, the rest is kept'
@@ -372,7 +371,7 @@ def "test aliases by absolute path" []: nothing -> nothing {
 
 def "test aliases apply to registered projects on rescan" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'proj scan --force' | ignore # registers vend under its directory name
+      in-proj $fx 'proj scan --force' # registers vend under its directory name
       let names = in-proj $fx 'with-env {project_aliases: {vend: vendored}} { proj scan --force | ignore }; proj list | get name'
       assert ('vendored' in $names) 'renamed by directory name (P4), before the scan returns (P5)'
       assert ('vend' not-in $names) 'no duplicate left behind'
@@ -393,7 +392,7 @@ def "test remote url forms" []: nothing -> nothing {
         let dir: path = $fx.work | path join src $name
         mkdir $dir
         git-init $dir --remote $url
-      } | ignore
+      }
       let rows = in-proj $fx 'proj scan --force | ignore; proj list --kind src | select name host repo'
       let got: record = $rows | where $remotes has $it.name | each {|r| {($r.name): [$r.host $r.repo]} } | into record
       assert equal $got.port [github owner/port] 'ssh with a port'
@@ -488,7 +487,7 @@ def "test main exec disables the zellij hook meanwhile" []: nothing -> nothing {
 
 def "test main scan picks up new projects first" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'proj scan --force' | ignore
+      in-proj $fx 'proj scan --force'
       mkdir ($fx.work | path join dev/fresh)
       assert equal (in-proj $fx 'proj --scan fresh; $env.PWD') ($fx.work | path join dev/fresh) 'found and entered'
   }
@@ -524,7 +523,7 @@ def "test snapshot is the only key the registry holds" []: nothing -> nothing {
 
 def "test snapshot a stale one is served as it is by a non-interactive shell" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'proj scan --force' | ignore
+      in-proj $fx 'proj scan --force'
       rm --recursive ($fx.work | path join txt/notes)
       mkdir ($fx.work | path join src/delta)
       assert equal (in-proj $fx 'proj list | get name | sort') [alpha beta gamma notes tools vend] 'no refresh: the snapshot as stored'
@@ -544,7 +543,7 @@ def "test hydration an interactive import refreshes in the background" []: nothi
 
 def "test hydration a fresh snapshot spawns nothing" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'proj scan --force' | ignore
+      in-proj $fx 'proj scan --force'
       let r = in-interactive $fx 'job list | length'
       assert equal $r.value 0 'nothing to refresh'
   }
@@ -552,7 +551,7 @@ def "test hydration a fresh snapshot spawns nothing" []: nothing -> nothing {
 
 def "test hydration a changed workspace is refreshed" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'proj scan --force' | ignore
+      in-proj $fx 'proj scan --force'
       mkdir ($fx.work | path join dev/fresh)
       let r = in-interactive $fx $"let n = job list | length; ($AWAIT); {jobs: $n, names: \(proj list --kind dev | get name | sort\)}"
       assert equal $r.value {jobs: 1 names: [fresh tools]} 'the kind directory changed, so a job ran and found it'
@@ -568,7 +567,7 @@ def "test hydration a fresh mark prevents a duplicate job" []: nothing -> nothin
 
 def "test hydration a failing job keeps the previous snapshot and warns once" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'proj scan --force' | ignore
+      in-proj $fx 'proj scan --force'
       mkdir ($fx.work | path join dev/fresh)
       # a string where a record of globs is expected makes the scan raise inside the job
       let r = in-interactive $fx $"($AWAIT); {names: \(proj list --kind dev | get name\), keys: \(use std-rfc/kv *; kv list --universal --table=proj | get key\)}" --vars {project_exclude: oops}
@@ -589,9 +588,9 @@ def "test prune keeps the stamp and a plain scan then sees the new directory" []
 
 def "test hydration past the ttl inspects registered projects again" []: nothing -> nothing {
   case {|fx|
-      in-proj $fx 'proj scan --force' | ignore
+      in-proj $fx 'proj scan --force'
       ^git -C ($fx.work | path join dev/tools) remote add origin 'git@github.com:zaynram/tools.git'
-      in-proj $fx 'use std-rfc/kv *; kv get --universal --table=proj snapshot | update stamp.at ((date now) - 2day) | kv set --universal --table=proj snapshot | ignore' | ignore
+      in-proj $fx 'use std-rfc/kv *; kv get --universal --table=proj snapshot | update stamp.at ((date now) - 2day) | kv set --universal --table=proj snapshot | ignore'
       let r = in-interactive $fx $"($AWAIT); proj list --kind dev | where name == tools | get 0.repo"
       assert equal $r.value 'zaynram/tools' 'the TTL refresh re-inspects the repository'
   }

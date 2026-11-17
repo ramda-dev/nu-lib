@@ -24,9 +24,9 @@ export def is-mounted []: path -> bool {
   let target: path = $in | path expand
   if not ($target | path exists) { return false }
   if (which mountpoint | is-not-empty) {
-    (^mountpoint -q $target | complete).exit_code == 0
+    (mountpoint -q $target | complete).exit_code == 0
   } else if (which findmnt | is-not-empty) {
-    (^findmnt --noheadings --mountpoint $target | complete).exit_code == 0
+    (findmnt --noheadings --mountpoint $target | complete).exit_code == 0
   } else {
     error raise 'neither mountpoint nor findmnt is installed' --with={
       kind: missing_dependency
@@ -41,7 +41,7 @@ export def is-mounted []: path -> bool {
 @category filesystem
 export def unmount [--remote]: path -> nothing {
   let target: path;
-  if not ($target | is-mounted) { return } else if $remote { ^fusermount3 -u $target } else { ^umount $target }
+  if not ($target | is-mounted) { return } else if $remote { fusermount3 -u $target } else { umount $target }
 }
 
 # Create a filesystem mount from a remote device over sshfs, or bind-mount a local path.
@@ -63,7 +63,7 @@ export def main [
   let program: string = if $remote { 'sshfs' } else { 'mount' }
   let result: record = match $target {
     _ if ($mount | is-mounted) => { return }
-    {port: $p} => (^sshfs -p $p $mount -o ...($target | format-remote-options) | complete)
+    {port: $p} => (sshfs -p $p $mount -o ($target | format-remote-options) | complete)
     $x if ($x | is-empty) => {
       error raise 'no source or remote configuration was provided' --with={
         kind: invalid_argument
@@ -76,7 +76,7 @@ export def main [
         help: 'rerun with `sudo`'
       }
     }
-    $s => (^mount --mkdir --bind $s $mount | complete)
+    $s => (mount --mkdir --bind $s $mount | complete)
   }
   if $result.exit_code != 0 {
     try { $mount | unmount --remote=$remote } catch { ignore }

@@ -137,13 +137,13 @@ def "test find without a project uses the repository name" []: record -> nothing
 
 def "test list sends no options by default" []: record -> nothing {
   let t: record;
-  todo list | ignore
+  todo list
   assert equal (calls $t) [[task list --all --json]] 'only the json listing'
 }
 
 def "test list maps its flags to td options" []: record -> nothing {
   let t: record;
-  todo list --project work --label [a b] --parent t9 --filter 'today' | ignore
+  todo list --project work --label [a b] --parent t9 --filter 'today'
   assert equal (calls $t) [[task list --all --json --project work --parent t9 --filter today --label 'a,b']] 'labels are joined with commas'
 }
 
@@ -241,7 +241,7 @@ def "test add passes a due string through" []: record -> nothing {
   let t: record;
   respond $t task-add (task t1 x)
   respond $t project-list $PROJECTS
-  todo add x --due 'every monday' | ignore
+  todo add x --due 'every monday'
   assert equal (calls $t | first) [task add x --json --due 'every monday'] 'the Todoist due string'
 }
 
@@ -258,7 +258,7 @@ def "test edit with an empty label set removes the labels" []: record -> nothing
   let t: record;
   respond $t task-update (task t1 one)
   respond $t project-list $PROJECTS
-  todo edit t1 --labels [] | ignore
+  todo edit t1 --labels []
   assert equal (calls $t | first) [task update t1 --json --no-labels] '`[]` maps to --no-labels (D8)'
 }
 
@@ -266,7 +266,7 @@ def "test edit without labels leaves them alone" []: record -> nothing {
   let t: record;
   respond $t task-update (task t1 one)
   respond $t project-list $PROJECTS
-  todo edit t1 --content one | ignore
+  todo edit t1 --content one
   assert equal (calls $t | first) [task update t1 --json --content one] 'neither --labels nor --no-labels'
 }
 

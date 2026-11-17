@@ -54,7 +54,7 @@ export def set [
   } | $in + $now
   let text: string = $"alarm\('($name)', time=($time | format date %T))"
   # Not `default`: it would call a closure argument to compute the default.
-  let notify: closure = if $notify != null { $notify } else { {|text: string| print $text } }
+  let notify: closure = $notify | default {|text: string| print $text }
   let item: record = job spawn --description=$desc {||
     loop {
       let left: duration = $time - (date now)
@@ -62,8 +62,8 @@ export def set [
       sleep ([$left 1sec] | math min)
     }
     if $then != null { do --ignore-errors $then | if not $silent { print } }
-    if not $silent { try { do $notify $text | ignore } }
-    drop-alarm $name | ignore
+    if not $silent { try { do $notify $text } }
+    drop-alarm $name
   } | {id: $in description: $desc expires_at: $time on_expires: (if $then == null { null } else { view source $then })}
   set-alarm --return=value $name $item
 }
@@ -76,7 +76,7 @@ export def unset [
   let item: oneof<nothing, record> = get-alarm $name
   if $item == null { return }
   if (job list).id has $item.id { job kill $item.id }
-  drop-alarm $name | ignore
+  drop-alarm $name
 }
 
 # List the set alarms: `{key id description expires_at on_expires}` rows, `key` being the alarm's name.

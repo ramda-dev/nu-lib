@@ -726,7 +726,7 @@ def "test prompt moves the generated script to the user autoload dir" []: nothin
     let user: path = $ctx.config | path join nushell autoload oh-my-posh.nu
     mkdir ($user | path dirname)
     '# stale' | save $user
-    value $ctx $'($stub)conf prompt' | ignore
+    value $ctx $'($stub)conf prompt'
     assert equal (open --raw $user | str trim) '# generated: init nu' 'an existing user script is replaced'
     assert not ($ctx.data | path join nushell vendor autoload oh-my-posh.nu | path exists) 'the vendor copy is moved'
   }
@@ -737,7 +737,7 @@ def "test prompt passes the config file" []: nothing -> nothing {
     let stub: string = posh-stub $ctx
     let theme: path = $ctx.code | path join theme.yaml
     'x: 1' | save $theme
-    value $ctx $'($stub)conf prompt --config ($theme)' | ignore
+    value $ctx $'($stub)conf prompt --config ($theme)'
     let user: path = $ctx.config | path join nushell autoload oh-my-posh.nu
     assert equal (open --raw $user | str trim) $'# generated: init nu --config=($theme)' 'the config is passed on'
   }
@@ -777,12 +777,12 @@ def "test machine config caches a script override until the file changes" []: no
       assert equal (runs $o.log) 1 'one run'
       assert equal (conf machine-config --no-cache).state /sbstate '--no-cache runs it again'
       assert equal (runs $o.log) 2 'and the record is current'
-      conf machine-config | ignore
+      conf machine-config
       assert equal (runs $o.log) 2 'the rewritten cache serves the next call'
       "\n# edited\n" | save --append $o.file
-      conf machine-config | ignore
+      conf machine-config
       assert equal (runs $o.log) 3 'a changed file (size, mtime) misses the cache'
-      conf machine-config --file $o.file | ignore
+      conf machine-config --file $o.file
       assert equal (runs $o.log) 4 '--file never uses the cache'
       let cache: path = $nu.cache-dir | path join nu-lib machine-override.nuon
       assert equal (open $cache | get $.key.file) $o.file 'the cache names the configured file'
@@ -794,10 +794,10 @@ def "test machine config cache misses on another nu version" []: nothing -> noth
   with-sandbox {|ctx|
     let o = logging-override $ctx
     with-env {NU_MACHINE_CONFIG: $o.file} {
-      conf machine-config | ignore
+      conf machine-config
       let cache: path = $nu.cache-dir | path join nu-lib machine-override.nuon
       open $cache | update $.key.nu '0.0.0' | save --force $cache
-      conf machine-config | ignore
+      conf machine-config
       assert equal (runs $o.log) 2 'a record checked by another nu is not trusted'
       assert equal (open $cache | get $.key.nu) (version).version 'and the cache is rewritten for this one'
     }
@@ -827,7 +827,7 @@ def "test machine config a cache that cannot be written is not an error" []: not
     'not a directory' | save --force $dir
     with-env {NU_MACHINE_CONFIG: $o.file} {
       assert equal (conf machine-config).state /sbstate 'the record is returned'
-      conf machine-config | ignore
+      conf machine-config
       assert equal (runs $o.log) 2 'every call loads the file while the cache cannot be written'
     }
     rm $dir
@@ -852,13 +852,13 @@ def "test machine config a script record expires after a day" []: nothing -> not
   with-sandbox {|ctx|
     let o = logging-override $ctx
     with-env {NU_MACHINE_CONFIG: $o.file} {
-      conf machine-config | ignore
+      conf machine-config
       let cache: path = $nu.cache-dir | path join nu-lib machine-override.nuon
       open $cache | update $.at ((date now) - 2day) | to nuon | save --force $cache
-      conf machine-config | ignore
+      conf machine-config
       assert equal (runs $o.log) 2 'a day-old script record is not trusted'
       open $cache | update $.key.root /elsewhere | to nuon | save --force $cache
-      conf machine-config | ignore
+      conf machine-config
       assert equal (runs $o.log) 3 'nor one computed against another library root'
     }
   }

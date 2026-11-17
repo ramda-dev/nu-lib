@@ -16,7 +16,7 @@ export def --env --wrapped main [
   # becomes a SIGPIPE that kills this process at `exec` (the terminal reset, the shell gone).
   let overrides: record = default {}
   with-env $overrides {
-    if $nu.os-info.name == linux and (is-terminal --stdin) { if $erase { ^reset -wc } else { ^reset -w } }
+    if $nu.os-info.name == linux and (is-terminal --stdin) { if $erase { reset -wc } else { reset -w } }
     if $nu.is-interactive { hide-env --ignore-errors pid }
     if $nu.is-login { exec $binary --login ...$rest } else { exec $binary ...$rest }
   }

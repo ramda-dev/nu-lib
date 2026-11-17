@@ -168,7 +168,7 @@ def failure-of [failure: record<phase: string, status: string> stderr: string]: 
 # up as the returned PWD/OLDPWD; `--cd` makes the caller follow it (change to the script's final directory).
 @example "read the variables a script exports" { 'export N=10' | env from-bash } --result {N: '10'}
 @example "unexported variables are shell variables" { 'ABC=123' | env from-bash --return shellvars } --result {ABC: '123'}
-@example "load the environment of a profile" { open --raw ~/.profile | env from-bash --load | ignore }
+@example "load the environment of a profile" { open --raw ~/.profile | env from-bash --load }
 @example "capture what functions change" {
   "export A=0\nf() { export A=1; S=one; }" | env from-bash --execute [f]
 } --result {env: {A: '0'} shellvars: {} fn: {f: {env: {A: '1'} shellvars: {S: one}}}}

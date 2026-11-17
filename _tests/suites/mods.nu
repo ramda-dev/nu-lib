@@ -15,7 +15,7 @@ use ../mod.nu *
 
 def "after each" []: any -> nothing {
   for table in [used_modules hidden_modules] {
-    for key in (kv list --table=$table | get --optional $.key | default []) { kv drop --table=$table $key | ignore }
+    for key in (kv list --table=$table | get --optional $.key | default []) { kv drop --table=$table $key }
   }
 }
 
@@ -108,7 +108,7 @@ def "test list absolute keeps the full location" []: nothing -> nothing {
 }
 
 def "test list update registers the listed modules" []: nothing -> nothing {
-  mods list --update --short | ignore
+  mods list --update --short
   assert ('mods' in (mods refresh --return names)) 'listing with --update registers the modules'
 }
 
@@ -154,11 +154,11 @@ def "test define writes the closure body as a module" []: nothing -> nothing {
 
 def "test define refuses to overwrite" []: nothing -> nothing {
   with-sandbox {|ctx|
-    mods define sbmod {|| export def a [] { 1 } } --directory $ctx.code | ignore
+    mods define sbmod {|| export def a [] { 1 } } --directory $ctx.code
     let err: record = try { mods define sbmod {|| export def b [] { 2 } } --directory $ctx.code; {} } catch {|e| $e }
     assert equal $err.details?.code? mods::define::conflict 'an existing module is kept'
     assert ($err.details?.help? =~ '--overwrite') $'the advice names the flag: ($err.details?.help?)'
-    mods define sbmod {|| export def b [] { 2 } } --directory $ctx.code --overwrite | ignore
+    mods define sbmod {|| export def b [] { 2 } } --directory $ctx.code --overwrite
     assert ((open --raw ($ctx.code | path join sbmod mod.nu)) =~ 'def b') '--overwrite replaces it'
   }
 }
@@ -336,7 +336,7 @@ def "test local edit opens the editor" []: nothing -> nothing {
     let stub: path = $ctx.code | path join editor
     $"#!/bin/sh\necho \"$@\" >> '($log)'\n" | save $stub
     ^chmod +x $stub
-    sandboxed $ctx 'local edit conf' --prelude 'use mods/local' --vars {EDITOR: $stub} | ignore
+    sandboxed $ctx 'local edit conf' --prelude 'use mods/local' --vars {EDITOR: $stub}
     assert equal (open --raw $log | str trim) ($ROOT | path join conf mod.nu) 'the resolved file is passed to $EDITOR'
   }
 }

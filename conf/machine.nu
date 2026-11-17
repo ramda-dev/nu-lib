@@ -265,7 +265,6 @@ def main [
     | transpose k v
     | format pattern '{k} = {v}'
     | each {|line| print $line }
-    | ignore
   }
   $DEFAULT
   | get $mode

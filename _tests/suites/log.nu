@@ -34,7 +34,7 @@ def "test format follows the colour setting" []: nothing -> nothing {
 }
 
 def "test format rejects an unknown level name in both modes" []: nothing -> nothing {
-  let code: closure = { try { log format --level nonsense | ignore; null } catch {|e| $e.details.code } }
+  let code: closure = { try { log format --level nonsense; null } catch {|e| $e.details.code } }
   $env.config.use_ansi_coloring = false
   assert equal (do $code) 'style::paint::invalid_argument' 'off: the name is checked before the colour decision'
   $env.config.use_ansi_coloring = true

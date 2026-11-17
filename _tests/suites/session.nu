@@ -37,7 +37,7 @@ def with-stub [body: closure]: nothing -> nothing {
       assert equal (which zellij | get $.0.path) ($stubs | path join zellij) 'the stub shadows any real client'
       do $body {log: $log sessions: $sessions fail: $fail}
     }
-  } | ignore
+  }
 }
 
 # The logged `zellij` invocations (their argument strings).
@@ -221,7 +221,7 @@ def "test layout completions include symlinked layouts" []: nothing -> nothing {
     }
     assert equal $res.exit_code 0 $res.stderr
     assert equal ($res.stdout | from nuon | sort) [linked plain] 'a layout that is a symlink is offered too'
-  } | ignore
+  }
 }
 
 # ——— enter ——————————————————————————————————————————————————————————————————————

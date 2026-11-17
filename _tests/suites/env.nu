@@ -89,14 +89,14 @@ def "test add default sets missing and null variables" []: nothing -> nothing {
 
 def "test add conversions register env conversions" []: nothing -> nothing {
   let conv: table = [[name to_string from_string]; [SBENV_LIST {|v| $v | str join ',' } {|s| $s | split row ',' }]]
-  env add --conversions $conv | ignore
+  env add --conversions $conv
   assert equal ($env.ENV_CONVERSIONS.SBENV_LIST | columns | sort) [from_string to_string] 'stored without the name column'
   assert equal (do $env.ENV_CONVERSIONS.SBENV_LIST.from_string 'a,b') [a b] 'the stored closure works'
 }
 
 def "test add conversions keep existing conversions" []: nothing -> nothing {
   $env.ENV_CONVERSIONS = {SBENV_OLD: {from_string: {|s| $s } to_string: {|v| $v }}}
-  env add --conversions [[name to_string from_string]; [SBENV_NEW {|v| $v } {|s| $s }]] | ignore
+  env add --conversions [[name to_string from_string]; [SBENV_NEW {|v| $v } {|s| $s }]]
   assert equal ($env.ENV_CONVERSIONS | columns | sort) [SBENV_NEW SBENV_OLD] 'new conversions are added to the existing ones'
 }
 
@@ -169,7 +169,7 @@ def "test dotenv no transpose returns a table" []: nothing -> nothing {
 }
 
 def "test dotenv does not load by default" []: nothing -> nothing {
-  with-dotenv "SBENV_DOT=1\n" {|f| env dotenv $f } | ignore
+  with-dotenv "SBENV_DOT=1\n" {|f| env dotenv $f }
   assert equal ($env.SBENV_DOT?) null 'parsing alone loads nothing'
 }
 
@@ -384,10 +384,10 @@ def "test from bash cd follows the script into its final directory" []: nothing 
   assert equal ($env.PWD | path expand) ($target | path expand) "--cd changes to the script's final directory"
   assert equal $env.SBFB_CD? null 'without --load nothing else is loaded'
   cd $pwd
-  "cd /\nexport SBFB_CD=3" | env from-bash --cd --load | ignore
+  "cd /\nexport SBFB_CD=3" | env from-bash --cd --load
   assert equal [$env.PWD $env.SBFB_CD] [/ '3'] '--cd and --load combine'
   cd $pwd
-  "export SBFB_CD=4" | env from-bash --cd | ignore
+  "export SBFB_CD=4" | env from-bash --cd
   assert equal $env.PWD $pwd 'a script that does not cd leaves the directory alone'
   rm --recursive --force $target
 }
@@ -572,7 +572,7 @@ def "test from bash without bash raises" []: nothing -> nothing {
 def env-dir [ctx: record files: record]: nothing -> path {
   let dir: path = $ctx.code | path join envd
   mkdir $dir
-  $files | items {|name text| $text | save --force ($dir | path join $name) } | ignore
+  $files | items {|name text| $text | save --force ($dir | path join $name) }
   $dir
 }
 
@@ -699,7 +699,7 @@ def "test parse load and no transpose" []: nothing -> nothing {
   with-sandbox {|ctx|
     let dir = env-dir $ctx {'l.env': "SBENV_P=9\n"}
     assert equal (env parse --no-transpose ($dir | path join l.env)) [[key value]; [SBENV_P '9']] 'a table'
-    env parse --load ($dir | path join l.env) | ignore
+    env parse --load ($dir | path join l.env)
     assert equal $env.SBENV_P? '9' 'loaded'
   }
 }

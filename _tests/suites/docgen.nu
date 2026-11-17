@@ -117,7 +117,7 @@ def "test collect-model-is-nuon-serializable" []: nothing -> nothing {
 
 # The details of the error `action` raises, or null when it raised nothing.
 def caught [action: closure]: nothing -> oneof<nothing, record> {
-  try { do $action | ignore; null } catch {|e| $e.details }
+  try { do $action; null } catch {|e| $e.details }
 }
 
 def "test collect-raises-on-broken-module" []: nothing -> nothing {
@@ -189,7 +189,7 @@ def "test collect-resolves-missing-slash-targets-through-the-lib-dirs" []: nothi
 
 def "test collect-prefers-existing-paths-over-the-lib-dirs" []: nothing -> nothing {
   with-sandbox {|ctx|
-    write-module ($ctx.code | path join lib) zzpkg/sub from-lib | ignore
+    write-module ($ctx.code | path join lib) zzpkg/sub from-lib
     let local: path = write-module ($ctx.code | path join here) zzpkg/sub from-here
     $env.NU_LIB_DIRS = [($ctx.code | path join lib)]
     cd ($ctx.code | path join here)

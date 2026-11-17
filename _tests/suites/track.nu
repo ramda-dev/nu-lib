@@ -80,7 +80,7 @@ def "test a disabled hook is not added again" []: record -> nothing {
 def "test the sync hook honours its disabled flag" []: nothing -> nothing {
   let ref: cell-path = hook reference track::sync --strict
   assert (hook test $ref --condition) 'enabled by default'
-  hook edit $ref --update {disabled: true} | ignore
+  hook edit $ref --update {disabled: true}
   assert not (hook test $ref --condition) 'disabled with hook edit'
 }
 
@@ -99,7 +99,7 @@ def "test the pwd hook refreshes only when leaving the root" []: nothing -> noth
 
 def "test the pwd hook honours its disabled flag" []: nothing -> nothing {
   let ref: cell-path = hook reference track::focus --strict
-  hook edit $ref --update {disabled: true} | ignore
+  hook edit $ref --update {disabled: true}
   assert not (hook test $ref --condition /w /tmp) 'disabled with hook edit'
 }
 
@@ -138,7 +138,7 @@ def "test focus on a detached head uses the short hash" []: record -> nothing {
 def "test focus outside a repository" []: record -> nothing {
   let t: record;
   enter $t
-  track focus --refresh | ignore
+  track focus --refresh
   cd $t.dir
   let f = track focus --refresh
   assert equal ($f | reject $.matches) {root: null} 'only root, set to null (T6)'
@@ -158,23 +158,23 @@ def "test focus tags the matched task" []: record -> nothing {
 def "test focus caches matches for an hour" []: record -> nothing {
   let t: record;
   enter $t
-  track focus --refresh | ignore
-  track focus --refresh | ignore
+  track focus --refresh
+  track focus --refresh
   assert equal (td-calls $t | length) 1 'the second refresh uses the cache'
   let key: string = $'($t.name)@($BRANCH)'
   $env.TRACK = $env.TRACK | update $.matches { update $key { update $.at ((date now) - 2hr) } }
-  track focus --refresh | ignore
+  track focus --refresh
   assert equal (td-calls $t | length) 2 'an expired match runs todo find again'
 }
 
 def "test focus keeps the stamp of a cached match" []: record -> nothing {
   let t: record;
   enter $t
-  track focus --refresh | ignore
+  track focus --refresh
   let key: string = $'($t.name)@($BRANCH)'
   let stamp: datetime = (date now) - 50min
   $env.TRACK = $env.TRACK | update $.matches { update $key { update $.at $stamp } }
-  track focus --refresh | ignore
+  track focus --refresh
   assert equal (td-calls $t | length) 1 'a 50 minute old match is still a hit'
   assert equal ($env.TRACK.matches | get $key | get $.at) $stamp 'the hit keeps the stamp, so the expiry does not slide'
 }
@@ -183,7 +183,7 @@ def "test focus refresh re-enables tracking" []: record -> nothing {
   let t: record;
   enter $t
   kv set --universal --table=track disabled true
-  track focus --refresh | ignore
+  track focus --refresh
   assert equal (kv get --universal --table=track disabled) null 'disabled is dropped (T2)'
 }
 
@@ -215,7 +215,7 @@ def "test sync without a focus refreshes it first" []: record -> nothing {
 def "test sync restarts when the open interval has other tags" []: record -> nothing {
   let t: record;
   enter $t
-  time start --at=((date now) - 1hr) elsewhere | ignore
+  time start --at=((date now) - 1hr) elsewhere
   track sync
   assert equal (time active | get $.tags) [$'#($t.name)' $BRANCH] 'the focus wins'
   assert equal (time list | length) 2 'the other interval is closed, not replaced'
@@ -224,7 +224,7 @@ def "test sync restarts when the open interval has other tags" []: record -> not
 def "test idle gap closes the abandoned interval" []: record -> nothing {
   let t: record;
   enter $t
-  track focus --refresh | ignore
+  track focus --refresh
   track sync
   sleep 1100ms
   track sync # advances the stamp past the interval start
@@ -246,7 +246,7 @@ def "test sync touches the stamp" []: record -> nothing {
 def "test outside a repository nothing changes" []: record -> nothing {
   let t: record;
   enter $t
-  track focus --refresh | ignore
+  track focus --refresh
   track sync
   cd $t.dir
   assert equal (track focus --refresh | get $.root) null 'outside a repository'
@@ -259,7 +259,7 @@ def "test outside a repository sync does not ask git again" []: record -> nothin
   let t: record;
   enter $t
   cd $t.dir
-  track focus --refresh | ignore
+  track focus --refresh
   need-posix
   let log: path = $t.dir | path join git.log
   let git: path = $t.bin | path join git
@@ -274,11 +274,11 @@ def "test outside a repository sync does not ask git again" []: record -> nothin
 def "test while disabled sync does nothing" []: record -> nothing {
   let t: record;
   enter $t
-  track focus --refresh | ignore
+  track focus --refresh
   kv set --universal --table=track disabled true
   track sync
   assert equal (time active) null 'no interval while disabled'
-  track focus --refresh | ignore
+  track focus --refresh
   track sync
   assert equal (time active | get $.tags) [$'#($t.name)' $BRANCH] 'tracking resumes after a refresh'
 }
@@ -302,7 +302,7 @@ def "test a timew failure disables tracking everywhere with one line" []: record
 def "test a deleted repository refreshes instead of failing" []: record -> nothing {
   let t: record;
   enter $t
-  track focus --refresh | ignore
+  track focus --refresh
   cd $t.dir
   rm --recursive --force $t.repo
   track sync

@@ -12,7 +12,7 @@ const HERE: string = '_tests::suites::error'
 
 # The details of the error raised by `action`, or null when it raised nothing.
 def caught [action: closure]: nothing -> oneof<nothing, record> {
-  try { do $action | ignore; null } catch {|e| $e.details }
+  try { do $action; null } catch {|e| $e.details }
 }
 
 # Write `files` (path relative to the fixture library → text) under the sandbox and return the library directory.

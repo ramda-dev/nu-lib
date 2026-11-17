@@ -27,12 +27,12 @@ def with-stub-sudo [body: closure --code: int = 0 --output: string = '']: nothin
     let bin: path = $ctx.code | path join bin
     let log: path = $ctx.code | path join sudo.log
     mkdir $stubs $bin
-    stub $stubs sudo $"printf '%s\\n' \"$*\" >> '($log)'\nprintf '%s' '($output)'\nexit ($code)" | ignore
+    stub $stubs sudo $"printf '%s\\n' \"$*\" >> '($log)'\nprintf '%s' '($output)'\nexit ($code)"
     with-env {PATH: ($env.PATH | prepend [$stubs $bin])} {
       assert equal (which sudo | get $.0.path) ($stubs | path join sudo) 'the stub sudo shadows the real one'
       do $body {ctx: $ctx bin: $bin log: $log}
     }
-  } | ignore
+  }
 }
 
 def sudo-calls [log: path]: nothing -> list<string> {
@@ -59,7 +59,7 @@ def "test links the first external on PATH into usr bin" []: nothing -> nothing 
     let first: path = stub $t.bin $name 'exit 0'
     let other: path = $t.ctx.code | path join other
     mkdir $other
-    stub $other $name 'exit 0' | ignore
+    stub $other $name 'exit 0'
     let link: path = with-env {PATH: ($env.PATH | append $other)} { link bin $name }
     assert equal $link $"/usr/bin/($name)" 'returns the link path'
     assert equal (sudo-calls $t.log) [$"ln -s ($first) /usr/bin/($name)"] 'links the first match on PATH'
@@ -92,7 +92,7 @@ def "test a regular file at the link path is an error" []: nothing -> nothing {
     let found: list<string> = ls /usr/bin | where type == file and ($it.name | path basename) =~ '^[a-z][a-z0-9_-]+$' | get $.name
     if ($found | is-empty) { skip 'no regular file in /usr/bin' }
     let name: string = $found | first | path basename
-    stub $t.bin $name 'exit 0' | ignore
+    stub $t.bin $name 'exit 0'
     let err = try { link bin $name; null } catch {|e| $e.details }
     assert equal $err.code? link::bin::conflict 'a non-link at the link path is a conflict'
     assert str contains $err.msg $"/usr/bin/($name)" 'names the link path'
@@ -121,7 +121,7 @@ def "test builtins are not link sources" []: nothing -> nothing {
 def "test a failed link raises with the command output" []: nothing -> nothing {
   with-stub-sudo --code=1 --output='ln: permission denied' {|t|
     let name: string = unused-name
-    stub $t.bin $name 'exit 0' | ignore
+    stub $t.bin $name 'exit 0'
     let err = try { link bin $name; null } catch {|e| $e.details }
     assert equal $err.code? link::bin::external_failure 'a failed ln is an external failure'
     assert ($err.msg =~ $"^unable to link '.*/($name)' at '/usr/bin/($name)'$") $'the message names the source and the link: ($err.msg)'

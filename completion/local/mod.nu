@@ -56,7 +56,7 @@ module fish-complete {
     let final: oneof<nothing, string> = skip | last
     # a fish single-quoted string: `\` and `'` are the only escapes
     $buffer | str replace --all --regex "([\\\\'])" '\$1'
-    | ^fish --command $"complete '--do-complete=($in)'"
+    | fish --command $"complete '--do-complete=($in)'"
     | read-tsv
     | if $final == null { } else {
       where value starts-with $final and value != $final
@@ -122,7 +122,7 @@ module carapace-complete {
       | default { match $shell { nushell => {|| from json } fish => {|| fish-complete parse-output } } }
       | default { {|| lines | each { split row (char sp) | first } } } # best-effort: the first word of each line
     let found = with-env ($runtime_env | default { runtime-env }) {
-      try { ^carapace $name $shell ...$spans | do $parse } catch { [] }
+      try { carapace $name $shell $spans | do $parse } catch { [] }
     }
     $found | default []
   }
@@ -176,7 +176,7 @@ export def --env set-completer [
   # this is intentional so that an empty list is treated as "don't use fish completions"
   if $env.fish_commands? == null { $env.fish_commands = $FISH }
   let current: oneof<nothing, closure> = $env.config.completions.external.completer?
-  let fallback: oneof<nothing, closure> = if $default != null { $default } else { $current }
+  let fallback: oneof<nothing, closure> = $default | default $current
   let built: closure = completer $fallback
   # closures compare equal when they come from the same literal: this recognizes any completer `completer` built
   let installed: bool = $current != null and $current == $built

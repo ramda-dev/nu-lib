@@ -209,7 +209,7 @@ export def with [
   let ref: oneof<nothing, cell-path> = $hook
     | default (if $name != null { list $name --strict=$strict | get $.0?.ref })
   if $ref != null and ($env.config.hooks | get --optional --ignore-case $ref) != null {
-    edit $ref --update=$modification | ignore
+    edit $ref --update=$modification
   } else if $strict {
     let target: string = if $hook != null { $"at '($hook)'" } else { $"named '($name)'" }
     error raise $"no hook ($target)" --kind not_found
@@ -385,7 +385,7 @@ export def --env add [
   let hooks: list = $given | if $value != null { append $value } else { } | match $in {
       [_ ..] if $dedupe => {
         let names: list<string> = flatten-hooks {|| true } | get $.name
-        $in | where ($it | describe) !~ ^record or $it.name? not-in $names
+        $in | where ($it | describe) !~ ^record or name not-in $names
       }
       [_ ..] => { }
       _ => { return null }

@@ -48,9 +48,9 @@ def "test list rows use key and description" []: nothing -> nothing {
 }
 
 def "test list filters names by regex" []: nothing -> nothing {
-  alarm set work-a 1hr --silent | ignore
-  alarm set work-b 1hr --silent | ignore
-  alarm set home 1hr --silent | ignore
+  alarm set work-a 1hr --silent
+  alarm set work-b 1hr --silent
+  alarm set home 1hr --silent
   assert equal (alarm list '^work' | get $.key | sort) [work-a work-b] 'only matching names'
   assert equal (alarm list zzz) [] 'no match is an empty table'
 }
@@ -70,7 +70,7 @@ def "test show of an unknown name is null unless errors are asked for" []: nothi
 }
 
 def "test a name can only be set once" []: nothing -> nothing {
-  alarm set t-one 1hr --silent | ignore
+  alarm set t-one 1hr --silent
   let err: record = try { alarm set t-one 5min --silent; {} } catch {|e| $e }
   assert equal $err.msg "'t-one' is already set" 'the duplicate is refused'
   assert equal $err.details?.code? alarm::set::conflict 'the code'
@@ -85,13 +85,13 @@ def "test unset kills the job and forgets the alarm" []: nothing -> nothing {
 }
 
 def "test unset of an unknown name does nothing" []: nothing -> nothing {
-  alarm set keep 1hr --silent | ignore
+  alarm set keep 1hr --silent
   alarm unset nope
   assert equal (alarm list | get $.key) [keep] 'other alarms are untouched'
 }
 
 def "test the callback is kept as source" []: nothing -> nothing {
-  alarm set t-then 1hr --silent --then {|| 42 } | ignore
+  alarm set t-then 1hr --silent --then {|| 42 }
   assert equal (alarm show t-then | get $.on_expires) '{|| 42 }' 'kv cannot hold a closure, so its text is shown'
 }
 
@@ -122,12 +122,12 @@ def "test when refuses an unparsable string" []: nothing -> nothing {
 # ——— expiry ———————————————————————————————————————————————————————————————————
 
 def "test a fired silent alarm forgets itself" []: nothing -> nothing {
-  alarm set t-fire 1sec --silent | ignore
+  alarm set t-fire 1sec --silent
   assert (wait-gone t-fire) 'the job dropped its own row (A2)'
 }
 
 def "test a fired alarm frees its name" []: nothing -> nothing {
-  alarm set t-fire 1sec --silent | ignore
+  alarm set t-fire 1sec --silent
   assert (wait-gone t-fire) 'expired'
   assert equal (alarm set t-fire 1hr --silent | get $.description) 'alarm::t-fire' 'the name can be set again'
 }
@@ -135,7 +135,7 @@ def "test a fired alarm frees its name" []: nothing -> nothing {
 def "test then runs on expiry" []: nothing -> nothing {
   with-sandbox {|ctx|
     let f: path = $ctx.code | path join then.txt
-    alarm set t-cb 1sec --silent --then {|| 'ran' | save $f } | ignore
+    alarm set t-cb 1sec --silent --then {|| 'ran' | save $f }
     assert (wait-gone t-cb) 'expired'
     assert equal (open $f) ran 'the callback ran'
   }
@@ -153,21 +153,21 @@ def "test notify receives the text on expiry" []: nothing -> nothing {
 def "test silent skips notify" []: nothing -> nothing {
   with-sandbox {|ctx|
     let f: path = $ctx.code | path join notify.txt
-    alarm set t-quiet 1sec --silent --notify {|text| $text | save $f } | ignore
+    alarm set t-quiet 1sec --silent --notify {|text| $text | save $f }
     assert (wait-gone t-quiet) 'expired'
     assert not ($f | path exists) 'no notification'
   }
 }
 
 def "test a failing notify still forgets the alarm" []: nothing -> nothing {
-  alarm set t-bad 1sec --notify {|text| error make --unspanned {msg: boom} } | ignore
+  alarm set t-bad 1sec --notify {|text| error make --unspanned {msg: boom} }
   assert (wait-gone t-bad) 'the row is dropped anyway'
 }
 
 def "test a failing callback still notifies" []: nothing -> nothing {
   with-sandbox {|ctx|
     let f: path = $ctx.code | path join notify.txt
-    alarm set t-bad 1sec --then {|| error make --unspanned {msg: boom} } --notify {|text| 'notified' | save $f } | ignore
+    alarm set t-bad 1sec --then {|| error make --unspanned {msg: boom} } --notify {|text| 'notified' | save $f }
     assert (wait-gone t-bad) 'expired'
     assert equal (open $f) notified 'notified after the failed callback'
   }
@@ -207,7 +207,7 @@ def "test local set delegates to alarm" []: nothing -> nothing {
 def "test local silent alarm fires and forgets itself" []: nothing -> nothing {
   with-sandbox {|ctx|
     let f: path = $ctx.code | path join then.txt
-    local set t-local 1sec --silent --then {|| 'ran' | save $f } | ignore
+    local set t-local 1sec --silent --then {|| 'ran' | save $f }
     assert (wait-gone t-local) 'forgotten after expiry'
     assert equal (open $f) ran 'the callback ran'
   }

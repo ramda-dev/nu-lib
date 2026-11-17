@@ -49,7 +49,7 @@ def with-win [body: closure]: nothing -> nothing {
       $"  -u\) printf '%s\\n' \"$2\" | sed -E 's#\\\\#/#g; s#^\([A-Za-z]\):#($mnt)/\\L\\1#' ;;"
       $"  -m\) printf '%s\\n' \"$2\" | sed -E 's#^($mnt)/\([a-z]\)#\\U\\1:#' ;;"
       'esac'
-    ] | str join (char newline)) | ignore
+    ] | str join (char newline))
     stub $stubs where.exe ([
       $"echo \"where.exe $*\" >> '($log)'"
       'case "$1" in'
@@ -57,11 +57,11 @@ def with-win [body: closure]: nothing -> nothing {
       "  bye) printf 'C:\\\\Tools\\\\bye.exe\\r\\n' ;;"
       "  *) echo 'INFO: Could not find files for the given pattern(s).' >&2; exit 1 ;;"
       'esac'
-    ] | str join (char newline)) | ignore
+    ] | str join (char newline))
     stub $stubs powershell.exe ([
       $"echo \"powershell.exe $*\" >> '($log)'"
       "printf 'C:\\\\Windows;C:\\\\Tools;;%%SystemRoot%%\\\\x\\r\\n'"
-    ] | str join (char newline)) | ignore
+    ] | str join (char newline))
     let vars: record = {PATH: ($env.PATH | prepend $stubs) WINPATH: [] USERPROFILE: $home}
     with-env $vars {
       for exe in [wslpath where.exe powershell.exe] {
@@ -69,7 +69,7 @@ def with-win [body: closure]: nothing -> nothing {
       }
       do $body {ctx: $ctx mnt: $mnt stubs: $stubs log: $log home: $home}
     }
-  } | ignore
+  }
 }
 
 def calls [log: path]: nothing -> list<string> {
@@ -84,7 +84,7 @@ def "test loading moves windows mounts from PATH to WINPATH" []: nothing -> noth
     let r = sandboxed $ctx '{PATH: $env.PATH WINPATH: $env.WINPATH} | to nuon' --prelude $PRELUDE --vars {PATH: $path} --pipe
     assert equal $r.PATH [/usr/bin /bin /home/u/mnt/c/bin] 'everything else stays, deduplicated'
     assert equal $r.WINPATH [/mnt/c/Windows/System32 /mnt/d/Tools] 'drive mounts move'
-  } | ignore
+  }
 }
 
 def "test an existing WINPATH leaves PATH alone" []: nothing -> nothing {
@@ -93,7 +93,7 @@ def "test an existing WINPATH leaves PATH alone" []: nothing -> nothing {
     let prelude: string = 'hide-env --ignore-errors WSL_DISTRO_NAME; $env.WINPATH = [/mnt/c/X]; use windows *'
     let r = sandboxed $ctx $code --prelude $prelude --vars {PATH: [/usr/bin /mnt/c/Y]} --pipe
     assert equal $r {PATH: [/usr/bin /mnt/c/Y] WINPATH: [/mnt/c/X]} 'unchanged'
-  } | ignore
+  }
 }
 
 def "test the distro name defaults to the first word of the os name" []: nothing -> nothing {
@@ -103,7 +103,7 @@ def "test the distro name defaults to the first word of the os name" []: nothing
     assert equal $r.name $r.host 'first word of the host name'
     let kept = sandboxed $ctx '$env.WSL_DISTRO_NAME | to nuon' --prelude "hide-env --ignore-errors WINPATH; $env.WSL_DISTRO_NAME = 'Arch'; use windows *" --pipe
     assert equal $kept Arch 'an existing name is kept'
-  } | ignore
+  }
 }
 
 # ——— path conversion ——————————————————————————————————————————————————————————
@@ -170,7 +170,7 @@ def "test which of a missing command is null and quiet" []: nothing -> nothing {
 def "test run executes the resolved program" []: nothing -> nothing {
   with-win {|t|
     mkdir ($t.mnt | path join c Tools)
-    stub ($t.mnt | path join c Tools) hello.exe 'echo "hello:$*"' | ignore
+    stub ($t.mnt | path join c Tools) hello.exe 'echo "hello:$*"'
     assert equal (win run hello a 'b c' | str trim) 'hello:a b c' 'runs with the arguments'
   }
 }
@@ -205,7 +205,7 @@ def "test env caches the raw windows variables" []: nothing -> nothing {
   need-sandboxed-data-dir
   with-win {|t|
     with-env {PATH: [/a] WINPATH: [/mnt/c/W]} {
-      win env | ignore
+      win env
       assert equal (open $CACHE | from msgpack).PATH [/mnt/c/W] 'the cache holds the windows PATH only'
       assert equal (win env --path overwrite).PATH [/mnt/c/W] 'a later --path mode applies to the cached value'
       assert equal (win env).PATH [/a /mnt/c/W] 'and merge again'
@@ -216,7 +216,7 @@ def "test env caches the raw windows variables" []: nothing -> nothing {
 def "test env reuses the cache until reset" []: nothing -> nothing {
   need-sandboxed-data-dir
   with-win {|t|
-    with-env {PATH: [/a] WINPATH: [/mnt/c/W]} { win env | ignore }
+    with-env {PATH: [/a] WINPATH: [/mnt/c/W]} { win env }
     with-env {PATH: [/a] WINPATH: [/mnt/c/X]} {
       assert equal (win env --path overwrite).PATH [/mnt/c/W] 'cached'
       assert equal (win env --path overwrite --reset).PATH [/mnt/c/X] 'recomputed'
@@ -229,7 +229,7 @@ def "test env rejects an unknown path mode even when cached" []: nothing -> noth
   with-win {|t|
     with-env {WINPATH: [/mnt/c/W]} {
       assert error { win env --path bogus } 'before caching'
-      win env | ignore
+      win env
       let err = try { win env --path bogus; null } catch {|e| $e }
       assert equal $err.msg "unknown --path 'bogus'" 'after caching'
       assert equal $err.details?.code? windows::win-env::invalid_argument 'the code'
@@ -309,7 +309,7 @@ def "test home cd changes into USERPROFILE" []: nothing -> nothing {
 def "test home edit opens USERPROFILE in EDITOR" []: nothing -> nothing {
   with-win {|t|
     let out: path = $t.ctx.code | path join edited
-    stub $t.stubs editor $"echo \"$*\" > '($out)'" | ignore
+    stub $t.stubs editor $"echo \"$*\" > '($out)'"
     with-env {EDITOR: editor} { win home --edit --join [notes.md] }
     assert equal (open $out | str trim) ($t.home | path join notes.md) 'EDITOR receives the path'
   }

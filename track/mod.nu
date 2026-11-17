@@ -31,7 +31,7 @@ export-env {
   add --dedupe env_change.PWD {
     name: 'track::focus'
     condition: {|_ pwd| (is-enabled --name=track::focus) and not ($pwd | is-within $env.TRACK?.root?) }
-    code: {|| focus --refresh | ignore }
+    code: {|| focus --refresh }
   }
 }
 
@@ -49,9 +49,9 @@ export def --env focus [
   --refresh (-r) # Recompute from the current directory instead of returning the cache
 ]: nothing -> oneof<nothing, record> {
   if not $refresh { return $env.TRACK? }
-  drop-disabled | ignore
+  drop-disabled
   let matches: record = $env.TRACK?.matches? | default {}
-  let res: record = do --ignore-errors { ^git rev-parse --show-toplevel --absolute-git-dir } | complete
+  let res: record = do --ignore-errors { git rev-parse --show-toplevel --absolute-git-dir } | complete
   $env.TRACK = if $res.exit_code != 0 { {root: null matches: $matches} } else {
     let paths: list<string> = $res.stdout | lines
     let repo: string = $paths | first | path basename
@@ -90,7 +90,7 @@ export def --env focus [
 export def --env sync [
   --idle: duration = 30min # Gap after which the open interval counts as abandoned
 ]: nothing -> nothing {
-  if ($env.TRACK? | is-stale-focus) { focus --refresh | ignore }
+  if ($env.TRACK? | is-stale-focus) { focus --refresh }
   if $env.TRACK.root == null or (get-disabled | default false) { return }
   try {
     let tags: list = $env.TRACK.tags
@@ -99,13 +99,13 @@ export def --env sync [
     let abandoned: bool = $last != null and (date now) - $last > $idle
     # ponytail: one `timew` call per command keeps Timewarrior the only state; cache if it drags
     time active
-    | if $in != null and $abandoned and $in.start < $last { time stop --at=$last | ignore } else { }
-    | if $in == null or ($in.tags | sort) != ($tags | sort) { time start ...$tags | ignore }
+    | if $in != null and $abandoned and $in.start < $last { time stop --at=$last } else { }
+    | if $in == null or ($in.tags | sort) != ($tags | sort) { time start ...$tags }
     $stamp | path dirname | mkdir $in
     touch $stamp
   } catch {|err|
     print --stderr $"track: disabled until PWD changes \(reason: ($err.msg))"
-    set-disabled | ignore
+    set-disabled
   }
 }
 

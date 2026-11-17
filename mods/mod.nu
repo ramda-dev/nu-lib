@@ -50,7 +50,7 @@ def default-include-modules [
   scope modules | (
     where name !~ $RE.omit
     and ($it.file | path exists)
-    and ($include_overlays or $it.name not-in $overlays)
+    and ($include_overlays or name not-in $overlays)
     and ($it.commands.decl_id | intersect $visible | is-not-empty)
   ) | uniq-by module_id
 }
@@ -71,7 +71,7 @@ def build-mods-refs []: table -> table<find: string, replace: string> {
     let base: oneof<nothing, string> = match $row.prefix { null => '' $p => ($env | get $p | default null) }
     if $base == null { return }
     {find: ($base | path join ...$row.segments) replace: $row.replace}
-  } | where $it.find != ''
+  } | where find != ''
 }
 
 # The prefix shorthand rows, or the row whose prefix starts the piped path (most specific prefix first).
@@ -111,7 +111,7 @@ export-env {
 
   let existing: list = $env.config.hooks.pre_execution?
     | default []
-    | where ($it | describe) starts-with record and $it.name? != null
+    | where ($it | describe) starts-with record and name != null
     | get $.name!
 
   # Guard also ensures an already registered hook does not pick up this `hook` import invocation.
@@ -123,7 +123,7 @@ export-env {
         $name
         false
         {|| (is-enabled --name=$name) and (commandline) =~ $RE.module_actions }
-        {|| job spawn --description=$name { refresh (commandline) } | ignore }
+        {|| job spawn --description=$name { refresh (commandline) } }
       ]
     ] | add pre_execution
   }
@@ -198,13 +198,13 @@ export def refresh [
       match $parsed.action {
         use => {
           # Ensure removal from the hidden modules
-          drop-hidden $name | ignore
+          drop-hidden $name
           # Add to the used modules, if not already set
           if (get-used $name) != $mod_id { set-used $name $mod_id }
         }
         hide => {
           # Ensure removal from the used modules
-          drop-used $name | ignore
+          drop-used $name
           # Add to the hidden modules, if not already set
           if (get-hidden $name) != $mod_id { set-hidden $name $mod_id }
         }
@@ -288,7 +288,7 @@ export def --env main [
   closure -> path
 ] {
   let input: any;
-  list --update --short | ignore
+  list --update --short
   match ($input | describe | str replace --regex '<.*' '') {
     closure if $name == null => {
       error raise 'name is required when defining a new module' --kind invalid_argument

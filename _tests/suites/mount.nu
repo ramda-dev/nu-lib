@@ -28,9 +28,9 @@ def with-stubs [body: closure --mounted --sshfs: string = 'exit 0']: nothing -> 
     let log: path = $ctx.code | path join calls.log
     let dir: path = $ctx.code | path join mnt
     mkdir $stubs $dir
-    [umount fusermount3 mount] | each {|p| stub $stubs $p $"echo \"($p) $*\" >> '($log)'" } | ignore
-    stub $stubs sshfs $"echo \"sshfs $*\" >> '($log)'\n($sshfs)" | ignore
-    if $mounted { stub $stubs mountpoint 'exit 0' | ignore }
+    [umount fusermount3 mount] | each {|p| stub $stubs $p $"echo \"($p) $*\" >> '($log)'" }
+    stub $stubs sshfs $"echo \"sshfs $*\" >> '($log)'\n($sshfs)"
+    if $mounted { stub $stubs mountpoint 'exit 0' }
     with-env {PATH: ($env.PATH | prepend $stubs)} {
       for p in [umount fusermount3 mount sshfs] {
         let found: string = which --all $p | where type == external | get $.0.path
@@ -39,7 +39,7 @@ def with-stubs [body: closure --mounted --sshfs: string = 'exit 0']: nothing -> 
       if (which mountpoint findmnt | is-empty) { skip 'neither mountpoint nor findmnt is installed' }
       do $body {ctx: $ctx dir: $dir log: $log}
     }
-  } | ignore
+  }
 }
 
 def calls [log: path]: nothing -> list<string> {
@@ -71,24 +71,24 @@ def "test is mounted is false for anything that is not a mount point" []: nothin
     assert not ($full | mount is-mounted) 'a populated directory'
     assert not ($full | path join f | mount is-mounted) 'a file'
     assert not ($ctx.code | path join missing | mount is-mounted) 'a missing path'
-  } | ignore
+  }
 }
 
 def "test is mounted falls back to findmnt" []: nothing -> nothing {
   with-sandbox {|ctx|
     let log: path = $ctx.code | path join calls.log
-    stub $ctx.code findmnt $"echo \"findmnt $*\" >> '($log)'" | ignore
+    stub $ctx.code findmnt $"echo \"findmnt $*\" >> '($log)'"
     let result = with-env {PATH: [$ctx.code]} { $ctx.code | mount is-mounted }
     assert $result 'findmnt found it'
     assert equal (calls $log) [$"findmnt --noheadings --mountpoint ($ctx.code)"] 'asks findmnt for the mount point'
-  } | ignore
+  }
 }
 
 def "test is mounted without mountpoint or findmnt is an error" []: nothing -> nothing {
   with-sandbox {|ctx|
     let err = try { with-env {PATH: [$ctx.code]} { $ctx.code | mount is-mounted }; null } catch {|e| $e.details }
     assert equal $err.code? mount::is-mounted::missing_dependency 'raises missing_dependency'
-  } | ignore
+  }
 }
 
 # ——— unmount ——————————————————————————————————————————————————————————————————
@@ -147,7 +147,7 @@ def "test a bind mount requires root" []: nothing -> nothing {
 def "test a bind mount as root runs mount bind" []: nothing -> nothing {
   if not (is-admin) { skip 'needs root (mount itself is a stub)' }
   with-stubs {|t|
-    mount $t.dir --source /tmp | ignore
+    mount $t.dir --source /tmp
     assert equal (calls $t.log) [$"mount --mkdir --bind /tmp ($t.dir)"] 'mount --bind, without sudo'
   }
 }
@@ -167,7 +167,7 @@ def "test a remote mount runs sshfs with the device options" []: nothing -> noth
 
 def "test a piped remote record works like the flag" []: nothing -> nothing {
   with-stubs {|t|
-    $REMOTE | mount $t.dir | ignore
+    $REMOTE | mount $t.dir
     assert ((calls $t.log | first) starts-with 'sshfs -p 8022') 'sshfs runs'
   }
 }
