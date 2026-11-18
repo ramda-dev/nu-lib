@@ -94,13 +94,18 @@ module carapace-complete {
   @category env
   export def runtime-env []: nothing -> record {
     help commands
-    | select $.name $.command_type
+    | select $.name $.category
     | update $.name { split row (char sp) | first }
     | uniq-by name
-    | insert $.key {|row| if $row.command_type == custom { 'CARAPACE_SHELL_FUNCTIONS' } else { 'CARAPACE_SHELL_BUILTINS' } }
+    | insert $.key { $'CARAPACE_SHELL_(match $in.category { '' => 'FUNCTIONS' _ => 'BUILTINS' })' }
     | group-by --prune --to-table key
     | update $.items { get $.name | str join (char nl) }
     | transpose --ignore-titles --header-row --as-record
+    | merge {
+      CARAPACE_SHELL: nushell
+      CARAPACE_SHELL_ALIASES: (scope aliases | get $.name | uniq | str join (char nl))
+      CARAPACE_SHELL_VARIABLES: (scope variables | get $.name | uniq | str join (char nl))
+    }
   }
 
   # Complete a commandline using `carapace`.
@@ -121,8 +126,8 @@ module carapace-complete {
     let parse: closure = $deserialize
       | default { match $shell { nushell => {|| from json } fish => {|| fish-complete parse-output } } }
       | default { {|| lines | each { split row (char sp) | first } } } # best-effort: the first word of each line
-    let found = with-env ($runtime_env | default { runtime-env }) {
-      try { carapace $name $shell $spans | do $parse } catch { [] }
+    let found = with-env ($runtime_env | default (runtime-env)) {
+      try { carapace $name $shell ...$spans | do $parse } catch { [] }
     }
     $found | default []
   }
@@ -143,7 +148,7 @@ export use carapace-complete
 # stale, whereas a cached snapshot keyed on `scope commands | length` cost more to check (~7 ms) than the recompute
 # it saved, and missed a command set that changed without changing its count.
 def completer [default: oneof<nothing, closure>]: nothing -> closure {
-  {|buffer: string, place?: record|
+  {|buffer: string place?: record|
     let spans: list<string> = if $place == null { $buffer } else { $place.command | str join (char sp) }
       | into spans --unalias
     $spans | match $spans.0? {
@@ -209,9 +214,9 @@ export def run-completer [
 export-env {
   if ($env.ENV_CONVERSIONS? | default {}) not-has fish_commands {
     $env.ENV_CONVERSIONS = $env.ENV_CONVERSIONS? | default {} | insert $.fish_commands {
-      to_string: {|v| $v | str join (char esep) }
-      from_string: {|s| $s | split row (char esep) | compact | uniq }
-    }
+        to_string: {|v| $v | str join (char esep) }
+        from_string: {|s| $s | split row (char esep) | compact | uniq }
+      }
   }
   load-env ($CARAPACE | reject --optional ...($env | columns))
   if $CARAPACE_BIN not-in $env.path! {
