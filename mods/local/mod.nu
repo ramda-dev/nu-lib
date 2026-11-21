@@ -13,6 +13,12 @@ use error
 use path
 use completion "into completions"
 use conf [ machine-config ]
+use edit
+
+# ——— aliases ——————————————————————————————————————————————————————————————————
+
+# Alias the `edit` module command so the exported `edit` here can use it
+alias run-edit = edit
 
 # ——— constants ————————————————————————————————————————————————————————————————
 
@@ -65,8 +71,7 @@ export def edit [
       }
     }
   if $get { return ($found | path expand) }
-  use edit
-  $found | edit
+  $found | run-edit
 }
 
 # ——— completions ——————————————————————————————————————————————————————————————
