@@ -43,6 +43,11 @@ export def main [
   }
 }
 
+# Edit all `.nu` files in the default config directory.
+export alias config = main ($nu.default-config-dir | path join *.nu | into glob)
+# Edit all `.nu` files held in any of the user autoload directories.
+export alias auto = main ...($nu.user-autoload-dirs | each --flatten { path join *.nu } | into glob)
+
 # ——— helpers ——————————————————————————————————————————————————————————————————
 
 # The paths an input item stands for (see `main`).

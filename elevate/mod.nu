@@ -7,6 +7,7 @@ use command attempt
 # ——— constants ————————————————————————————————————————————————————————————————
 
 const UNAUTHORIZED: string = '(?i)\b(401|403|unauthori[sz]ed|not (logged in|authenticated)|auth login)\b'
+const TEMPLATE: string = 'echo {input} | decode base64 | decode utf-8 | from nuon | do --env --capture-errors {source} ...{argv}'
 
 # ——— definitions ——————————————————————————————————————————————————————————————
 
@@ -24,7 +25,7 @@ export def --env --wrapped main [
   ...rest: string
   # Arguments to pass to the `nu` invocation
 ]: nothing -> nothing {
-  exec sudo $binary ...(if $login { [--login] } else { [] }) ...$rest
+  %exec sudo $binary ...(if $login { [--login] } else { [] }) ...$rest
 }
 
 # Run a shell command in an elevated context.
@@ -88,4 +89,24 @@ export def --wrapped with-auth [
       $err.raw
     }
   } | if not $check { get $.stdout } else { }
+}
+
+# Run a closure with an elevated Nushell process.
+#
+# Pipeline input will be serialized and base64 encoded then forwarded and deserialized/decoded.
+@category shells
+export def --env --wrapped exec [
+  closure: closure
+  # Command(s) to execute with an elevated context
+  ...rest: string
+  # Arguments to pass to the closure when called
+  --options (-o): list<string> = [--no-config-file --no-std-lib]
+  # Options to pass to the wrapped `nu` invocation
+]: oneof<nothing, any> -> oneof<nothing, any> {
+  {
+    input: ($in | to nuon --serialize --raw-strings | encode base64)
+    source: (view source $closure)
+    argv: ($rest | to nuon --serialize --raw-strings --no-commas)
+  } | format pattern $TEMPLATE
+  | sudo $nu.current-exe ...$options --commands $in
 }
