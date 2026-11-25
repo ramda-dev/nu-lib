@@ -98,6 +98,7 @@ export def list [
 ]: nothing -> oneof<list<string>, list<Session>> {
   need-client
   zellij list-sessions
+  | default []
   | where name =~ $regex and ($active == $exited or exited == ($exited and not $active))
   | if $short { get $.name } else { }
 }
