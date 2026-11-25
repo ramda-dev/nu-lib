@@ -59,30 +59,6 @@ def config-dir []: nothing -> path {
   | default { $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join zellij }
 }
 
-
-# ——— structured ———————————————————————————————————————————————————————————————
-
-@structured --pipe-only [--no-formatting] {
-  complete | match $in {
-    {stderr: $e} if $e =~ '(?i)no active zellij sessions' => []
-    {exit_code: 0} => (
-      get $.stdout
-      | lines
-      | parse '{name} [Created {created}]{_} {exited}'
-      | update $.exited { str contains EXITED }
-      | update $.created { split words | drop | into age | (date now) - $in }
-    )
-    {exit_code: $c stderr: $e} => {
-      error raise $'unable to list sessions; zellij exited with code ($c)' --with={
-        kind: external_failure
-        help: ($e | str trim)
-      }
-    }
-  }
-}
-extern "zellij list-sessions" []
-
-
 # ——— definitions ——————————————————————————————————————————————————————————————
 
 # List Zellij sessions with their age and status.
@@ -97,10 +73,16 @@ export def list [
   --exited (-e) # Only sessions that have exited
 ]: nothing -> oneof<list<string>, list<Session>> {
   need-client
-  zellij list-sessions
-  | default []
-  | where name =~ $regex and ($active == $exited or exited == ($exited and not $active))
-  | if $short { get $.name } else { }
+  try {
+    ^zellij list-sessions
+    | ignore --stderr
+    | lines
+    | parse '{name} [Created {created}]{_} {exited}'
+    | update $.exited { str contains EXITED }
+    | update $.created { split words | drop | into age | (date now) - $in }
+    | where name =~ $regex and ($active == $exited or exited == ($exited and not $active))
+    | if $short { get $.name } else { }
+  } | default []
 }
 
 # Kill and delete a Zellij session, or all of them.
