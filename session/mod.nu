@@ -74,7 +74,7 @@ export def list [
 ]: nothing -> oneof<list<string>, list<Session>> {
   need-client
   try {
-    ^zellij list-sessions
+    ^zellij list-sessions --no-formatting
     | ignore --stderr
     | lines
     | parse '{name} [Created {created}]{_} {exited}'
