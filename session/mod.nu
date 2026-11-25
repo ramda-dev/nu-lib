@@ -223,7 +223,7 @@ export def --wrapped enter [
 # ——— completions ——————————————————————————————————————————————————————————————
 
 def _names []: nothing -> list<string> {
-  client list-sessions --short --no-formatting | get $.stdout | lines | str trim | where $it != ''
+  client list-sessions --short --no-formatting | get $.stdout | lines | str trim | compact --empty
 }
 
 def _layouts []: nothing -> list<string> {
