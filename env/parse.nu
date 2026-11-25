@@ -56,7 +56,7 @@ def closing-index [quote: string]: string -> oneof<nothing, int> {
 # quoted multi-line value) or `junk` (nothing a dotenv file can hold, with its `text`); `index` is the line number
 # from 0. The state carried between lines is the quote a value left open ('' for none).
 def walk-lines []: string -> list<record> {
-  lines | enumerate | generate {|l, open|
+  lines | enumerate | generate {|l open|
     let line: string = $l.item
     if $open != '' {
       {out: {index: $l.index kind: continuation} next: (if ($line | closing-index $open) == null { $open } else { '' })}
@@ -98,7 +98,7 @@ def dotenv-verdict []: string -> record {
     | where kind == assignment
     | reverse
     | uniq-by key
-    | where quote != "'" and ((quote == '' and ($it.body | str starts-with '~')) or body =~ $SHELL_VALUE)
+    | where quote != "'" and (($it.quote == '' and ($it.body | str starts-with '~')) or body =~ $SHELL_VALUE)
     | get $.0?.key
   if $shell == null { $parsed } else { {key: $shell} }
 }
@@ -172,21 +172,21 @@ export def --env main [
 ]: nothing -> oneof<table<key: string, value: string>, record> {
   let targets: list<path> = if ($paths | is-empty) { ['.env'] } else { $paths }
   let files: list<path> = $targets | each --flatten {|p|
-    if not ($p | path exists) { error raise $"not found: '($p)'" --kind not_found }
-    # `path expand` resolves a symlink: a link to a directory is read as one, a link to a file as a file and a
-    # dangling link (or a link to a directory) inside a directory is left out.
-    if ($p | path expand | path type) == dir {
-      glob --no-dir ($p | path join '*')
-      | where ($it | path expand | path type) == file
-      | sort
-      | where (reader-of $it) != null
-    } else { [$p] }
-  }
+      if not ($p | path exists) { error raise $"not found: '($p)'" --kind not_found }
+      # `path expand` resolves a symlink: a link to a directory is read as one, a link to a file as a file and a
+      # dangling link (or a link to a directory) inside a directory is left out.
+      if ($p | path expand | path type) == dir {
+        glob --no-dir ($p | path join '*')
+        | where ($it | path expand | path type) == file
+        | sort
+        | where (reader-of $it) != null
+      } else { [$p] }
+    }
   # A fold over a handful of files: each one is read with the previous results in scope (tiny accumulator). A
   # variable a bash file unsets (null) is dropped, one it empties ('') is kept.
   let vars: record = $files | reduce --fold {} {|file acc|
-    $acc | merge (with-env $acc { read-file $file }) | record where value != null
-  }
+      $acc | merge (with-env $acc { read-file $file }) | record where value != null
+    }
   if $load { load-env $vars }
   if $no_transpose { $vars | transpose key value } else { $vars }
 }
