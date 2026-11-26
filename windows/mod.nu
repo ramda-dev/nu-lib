@@ -11,25 +11,30 @@ use error
 const _save: path = $nu.data-dir | path join windows_env.msgpack
 # Where Windows executables are expected when neither PATH nor WINPATH has them.
 const SYSTEM32: path = '/mnt/c/Windows/System32'
+const SHELL: record = {
+  core: /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
+  seven: /mnt/c/progra~1/PowerShell/7/pwsh.exe
+  nu: /mnt/c/progra~1/nu/bin/nu.exe
+}
 
 # ——— aliases ——————————————————————————————————————————————————————————————————
 
 # Run the PowerShell 7 executable.
-export alias pwsh = /mnt/c/progra~1/PowerShell/7/pwsh.exe
+export alias pwsh = ^$SHELL.seven
 # Run a command with PowerShell 7 (use `pwsh` directly to choose another execution policy).
 export alias "pwsh x" = pwsh -nop -noni -ExecutionPolicy Bypass -c
 # Run the Windows PowerShell (5.1) executable.
-export alias powershell = /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
+export alias powershell = ^$SHELL.core
 # Run a command with Windows PowerShell (use `powershell` directly to choose another execution policy).
 export alias "powershell x" = powershell -nop -noni -ExecutionPolicy Bypass -c
 # Convert Windows path(s) to POSIX path(s) with `wslpath -u`; POSIX paths pass through unchanged.
 #
 # A path `wslpath` cannot convert becomes null, and is dropped from a list.
-export alias "path as-posix" = each {|| if $in starts-with / { } else { try { wslpath -u $in } } }
+export alias "path as-posix" = each {|| if $in starts-with / { } else { try { ^wslpath -u $in | ignore --stderr } } }
 # Convert POSIX path(s) to Windows path(s) with `wslpath -m` (forward slashes).
 #
 # A path `wslpath` cannot convert becomes null, and is dropped from a list.
-export alias "path as-windows" = each {|| try { wslpath -m $in } }
+export alias "path as-windows" = each {|| try { ^wslpath -m $in | ignore --stderr } }
 
 # ——— helpers ——————————————————————————————————————————————————————————————————
 
@@ -72,6 +77,76 @@ export-env {
 
 # ——— definitions ——————————————————————————————————————————————————————————————
 
+# Run a commandline with PowerShell and hydrate structured data.
+@category shells
+export def --wrapped "win sh" [
+  ...rest: string
+  # Commandline to run with the shell
+  --argv (-a): list<string>
+  # Use this list as the shell binary and exec arguments
+  --pwsh (-p)
+  # Use PowerShell 7 (`pwsh.exe`)
+  --core (-c)
+  # Use PowerShell Core (5.1; `powershell.exe`)
+  --text (-t)
+  # Force disable structured data parsing
+  --json (-j) = true
+  # Parse output as structured JSON
+  --mode (-m): string = Bypass
+  # Execution policy for the commands
+  --sudo (-s)
+  # Run the commands as administrator
+]: oneof<nothing, any> -> oneof<nothing, string, list, record, table, number, bool> {
+  let parse: bool = $json and not $text
+  let command: string = $rest | str join (char sp)
+  let sh: list<string> = if $core {
+    [
+      $SHELL.core
+      -NonInteractive
+      -NoProfile
+      -ExecutionPolicy
+      $mode
+      -Command
+    ]
+  } else if $pwsh {
+    [
+      $SHELL.seven
+      -NonInteractive
+      -NoProfile
+      -ExecutionPolicy
+      $mode
+      -Command
+    ]
+  } else {
+    $argv | default --empty [
+      $SHELL.nu
+      --no-config-file
+      --no-std-lib
+      --commands
+    ]
+  }
+  let end: string = match ($SHELL | values | intersect $sh | path parse).0?.stem {
+    _ if not $parse => ''
+    pwsh | powershell => ' | ConvertTo-Json -ErrorAction SilentlyContinue'
+    nu => ' | let out | try { to json } catch { $out }'
+  }
+  let pathing: closure = {|| if ($in | describe) =~ ^string$ and $in =~ '\\' { path as-posix } else { } }
+  let output: string = run-external ...(
+    $sh | if $sudo { update 0 { path basename } | prepend (win which sudo.exe) } else { }
+  ) ($command + $end)
+  if not $parse { return $output }
+  try { $output | from json } catch {
+    error make --unspanned {
+      msg: 'JSON decode error'
+      help: $'output:(char nl)($output)'
+    }
+  } | match ($in | describe | str replace --regex <.+ '') {
+    string | list => (each --flatten $pathing)
+    table | record => (update cells --recursive $pathing)
+    _ => ()
+  }
+}
+
 # Run a command on the Windows PATH, if it exists.
 @category platform
 export def --wrapped "win run" [
@@ -98,7 +173,7 @@ export def --wrapped "win which" [
   let where_exe: path = win-exe where.exe ($SYSTEM32 | path join where.exe)
   let where: closure = {|a: string|
     ^$where_exe $a | complete
-    | if $in.exit_code == 0 { $in.stdout | lines | str trim --right | where $it != '' } else { [] }
+    | if $in.exit_code == 0 { $in.stdout | lines | str trim --right | compact --empty } else { [] }
     | path as-posix
     | if $all { } else { first }
   }
