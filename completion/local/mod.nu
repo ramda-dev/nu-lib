@@ -68,7 +68,7 @@ module fish-complete {
 
   # fish's `value<TAB>description` lines as rows, values verbatim (`description` is absent on lines without one).
   def read-tsv []: string -> table<value: string> {
-    from tsv --flexible --noheaders --no-infer | rename value description
+    from tsv --flexible --noheaders | rename value description
   }
 
   # Make each value usable as a nushell argument (see `parse-output`).
